@@ -3,19 +3,58 @@
 let
   wordpress = pkgs.wordpress;
   php = pkgs.php82.buildEnv {
-    extensions = { all, enabled }: with all; enabled ++ [ pcov xdebug ];
+    extensions = { all, enabled }: with all; enabled ++ [
+      # Required extensions
+      json
+      mysqli
+
+      # Highly recommended extensions
+      curl
+      dom
+      exif
+      fileinfo
+      hash
+      imagick
+      intl
+      mbstring
+      openssl
+      pcre
+      xml
+      zip
+
+      # Recommended for caching (choose one or more as needed)
+      opcache
+      # redis
+
+      # Optional extensions for improved functionality
+      gd
+      iconv
+      sodium
+
+      # Development extensions (can be removed in production)
+      # xdebug
+    ];
+    extraConfig = ''
+      memory_limit = 256M
+      upload_max_filesize = 100M
+      post_max_size = 100M
+      max_execution_time = 300
+    '';
   };
 in
 pkgs.dockerTools.buildLayeredImage {
-  name = "wordpress-frankenphp-nixos";
+  name = "wordpress";
   tag = "latest";
   contents = [
-    pkgs.frankenphp
     php
     wordpress
     pkgs.bashInteractive
     pkgs.coreutils
+    pkgs.frankenphp
+    pkgs.ghostscript
     pkgs.gnused
+    pkgs.imagemagick
+    pkgs.vips
   ];
 
   config = {
