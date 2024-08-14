@@ -12,7 +12,6 @@ let
       dom
       exif
       fileinfo
-      hash
       imagick
       intl
       mbstring
