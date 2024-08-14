@@ -16,7 +16,6 @@ let
       intl
       mbstring
       openssl
-      pcre
       xml
       zip
 
