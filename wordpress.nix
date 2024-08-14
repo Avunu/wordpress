@@ -2,10 +2,9 @@
 
 let
   wordpress = pkgs.wordpress;
-  php = pkgs.php82.buildEnv {
+  php = pkgs.php83.buildEnv {
     extensions = { all, enabled }: with all; enabled ++ [
       # Required extensions
-      json
       mysqli
 
       # Highly recommended extensions
