@@ -10,14 +10,14 @@ define( 'DB_COLLATE', '' );
 $table_prefix = getenv('WORDPRESS_TABLE_PREFIX') ?: 'wp_';
 
 // Authentication Unique Keys and Salts
-define( 'AUTH_KEY',         getenv('WORDPRESS_AUTH_KEY') ?: 'put your unique phrase here' );
-define( 'SECURE_AUTH_KEY',  getenv('WORDPRESS_SECURE_AUTH_KEY') ?: 'put your unique phrase here' );
-define( 'LOGGED_IN_KEY',    getenv('WORDPRESS_LOGGED_IN_KEY') ?: 'put your unique phrase here' );
-define( 'NONCE_KEY',        getenv('WORDPRESS_NONCE_KEY') ?: 'put your unique phrase here' );
-define( 'AUTH_SALT',        getenv('WORDPRESS_AUTH_SALT') ?: 'put your unique phrase here' );
-define( 'SECURE_AUTH_SALT', getenv('WORDPRESS_SECURE_AUTH_SALT') ?: 'put your unique phrase here' );
-define( 'LOGGED_IN_SALT',   getenv('WORDPRESS_LOGGED_IN_SALT') ?: 'put your unique phrase here' );
-define( 'NONCE_SALT',       getenv('WORDPRESS_NONCE_SALT') ?: 'put your unique phrase here' );
+define( 'AUTH_KEY',         getenv('WORDPRESS_AUTH_KEY') );
+define( 'SECURE_AUTH_KEY',  getenv('WORDPRESS_SECURE_AUTH_KEY') );
+define( 'LOGGED_IN_KEY',    getenv('WORDPRESS_LOGGED_IN_KEY') );
+define( 'NONCE_KEY',        getenv('WORDPRESS_NONCE_KEY') );
+define( 'AUTH_SALT',        getenv('WORDPRESS_AUTH_SALT') );
+define( 'SECURE_AUTH_SALT', getenv('WORDPRESS_SECURE_AUTH_SALT') );
+define( 'LOGGED_IN_SALT',   getenv('WORDPRESS_LOGGED_IN_SALT') );
+define( 'NONCE_SALT',       getenv('WORDPRESS_NONCE_SALT') );
 
 // Debug mode
 define( 'WP_DEBUG', !!getenv('WORDPRESS_DEBUG') );

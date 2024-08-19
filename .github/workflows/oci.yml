@@ -1,4 +1,4 @@
-name: Build and Push WordPress FrankenPHP Image
+name: Build and Push WordPress Images
 
 on:
   push:
@@ -16,12 +16,15 @@ jobs:
     - name: Install Nix
       uses: cachix/install-nix-action@v18
       with:
-        nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: |
+          experimental-features = nix-command flakes
 
-    - name: Build Docker Image
+    - name: Build Docker Images
       run: |
-        nix-build wordpress.nix
+        nix build .#wordpress-php81 .#wordpress-php82 .#wordpress-php83
         docker load < result
+        docker load < result-1
+        docker load < result-2
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v1
@@ -30,7 +33,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Push image to GitHub Container Registry
+    - name: Push images to GitHub Container Registry
       run: |
         IMAGE_ID=ghcr.io/${{ github.repository }}
         
@@ -49,5 +52,23 @@ jobs:
         echo IMAGE_ID=$IMAGE_ID
         echo VERSION=$VERSION
         
-        docker tag wordpress:latest $IMAGE_ID:$VERSION
-        docker push $IMAGE_ID:$VERSION
+        # Get the actual image names from Docker
+        IMAGES=($(docker images --format "{{.Repository}}:{{.Tag}}" | grep wordpress))
+        
+        for IMAGE in "${IMAGES[@]}"; do
+          PHP_VERSION=$(echo $IMAGE | sed -n 's/.*-php\([0-9]\+\).*/\1/p')
+          FULL_IMAGE_ID=$IMAGE_ID:php$PHP_VERSION
+          
+          docker tag $IMAGE $FULL_IMAGE_ID
+          docker push $FULL_IMAGE_ID
+          
+          if [ "$VERSION" == "latest" ]; then
+            docker tag $FULL_IMAGE_ID $IMAGE_ID:latest-php$PHP_VERSION
+            docker push $IMAGE_ID:latest-php$PHP_VERSION
+          fi
+        done
+
+        # Tag one version as the default latest
+        DEFAULT_PHP_VERSION=82
+        docker tag $IMAGE_ID:php$DEFAULT_PHP_VERSION $IMAGE_ID:latest
+        docker push $IMAGE_ID:latest
