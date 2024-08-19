@@ -19,7 +19,7 @@
           };
       in {
         packages = {
-          wordpress-php80 = mkWordPressImage "php80";
+          wordpress-php81 = mkWordPressImage "php80";
           wordpress-php82 = mkWordPressImage "php82";
           wordpress-php83 = mkWordPressImage "php83";
           default = self.packages.${system}.wordpress-php82;

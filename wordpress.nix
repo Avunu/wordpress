@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs, php, imageName }:
 
 let
   phpBuild = php.buildEnv {
@@ -50,6 +50,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.ghostscript
     pkgs.gnused
     pkgs.imagemagick
+    pkgs.mysql
     pkgs.unzip
     pkgs.vips
   ];
