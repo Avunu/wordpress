@@ -1,8 +1,7 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
-  wordpress = pkgs.wordpress;
-  php = pkgs.php83.buildEnv {
+  phpBuild = php.buildEnv {
     extensions = { all, enabled }: with all; enabled ++ [
       # Required extensions
       mysqli
@@ -40,17 +39,18 @@ let
   };
 in
 pkgs.dockerTools.buildLayeredImage {
-  name = "wordpress";
+  name = imageName;
   tag = "latest";
   contents = [
-    php
-    wordpress
+    phpBuild
     pkgs.bashInteractive
     pkgs.coreutils
+    pkgs.curl
     pkgs.frankenphp
     pkgs.ghostscript
     pkgs.gnused
     pkgs.imagemagick
+    pkgs.unzip
     pkgs.vips
   ];
 
@@ -60,13 +60,17 @@ pkgs.dockerTools.buildLayeredImage {
     ExposedPorts = {
       "80/tcp" = {};
     };
+    Env = [
+      "WORDPRESS_SOURCE_URL=https://wordpress.org/latest.zip"
+      "WORDPRESS_DB_HOST=localhost"
+      "WORDPRESS_DB_USER=wordpress"
+      "WORDPRESS_DB_PASSWORD=wordpress"
+      "WORDPRESS_DB_NAME=wordpress"
+    ];
   };
 
   extraCommands = ''
     mkdir -p var/www/html
-    cp -R ${wordpress}/* var/www/html/
-    chmod -R 755 var/www/html
-
     cp ${./wp-config.php} var/www/html/wp-config.php
     cp ${./docker-entrypoint.sh} docker-entrypoint.sh
     chmod +x docker-entrypoint.sh
