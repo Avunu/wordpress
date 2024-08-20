@@ -63,6 +63,7 @@ pkgs.dockerTools.buildLayeredImage {
       "80/tcp" = {};
     };
     Env = [
+      "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "WORDPRESS_SOURCE_URL=https://wordpress.org/latest.zip"
       "WORDPRESS_DB_HOST=localhost"
       "WORDPRESS_DB_USER=wordpress"
