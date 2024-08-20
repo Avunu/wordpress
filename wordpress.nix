@@ -44,6 +44,7 @@ pkgs.dockerTools.buildLayeredImage {
   contents = [
     phpBuild
     pkgs.bashInteractive
+    pkgs.cacert
     pkgs.coreutils
     pkgs.curl
     pkgs.frankenphp
