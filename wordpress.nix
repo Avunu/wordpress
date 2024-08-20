@@ -51,7 +51,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.ghostscript
     pkgs.gnused
     pkgs.imagemagick
-    pkgs.mysql
+    pkgs.mysql.client
     pkgs.unzip
     pkgs.vips
   ];
