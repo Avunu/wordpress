@@ -47,6 +47,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.cacert
     pkgs.coreutils
     pkgs.curl
+    pkgs.findutils
     pkgs.frankenphp
     pkgs.ghostscript
     pkgs.gnused
