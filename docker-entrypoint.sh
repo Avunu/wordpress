@@ -59,7 +59,7 @@ import_db_mysql() {
 # Always copy the custom wp-config.php
 echo "Copying custom wp-config.php"
 cp /wp-config.php /var/www/html/wp-config.php
-chown nobody:nobody /var/www/html/wp-config.php
+# chown nobody:nobody /var/www/html/wp-config.php
 chmod 644 /var/www/html/wp-config.php
 
 
