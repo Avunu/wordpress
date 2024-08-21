@@ -56,21 +56,16 @@ import_db_mysql() {
     rm db_dump.sql
 }
 
-# Check if WordPress is installed
-if [ ! -f /var/www/html/wp-config.php ] && [ ! -f /var/www/html/wp-config-sample.php ]; then
-    install_wordpress
-fi
+# Always copy the custom wp-config.php
+echo "Copying custom wp-config.php"
+cp /wp-config.php /var/www/html/wp-config.php
+chown nobody:nobody /var/www/html/wp-config.php
+chmod 644 /var/www/html/wp-config.php
 
-# Generate random salts if not provided
-if [ -z "${WORDPRESS_AUTH_KEY:-}" ]; then
-    export WORDPRESS_AUTH_KEY=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_SECURE_AUTH_KEY=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_LOGGED_IN_KEY=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_NONCE_KEY=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_AUTH_SALT=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_SECURE_AUTH_SALT=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_LOGGED_IN_SALT=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
-    export WORDPRESS_NONCE_SALT=$(head -c1m /dev/urandom | sha1sum | cut -d' ' -f1)
+
+# Check if WordPress is installed
+if [ ! -f /var/www/html/wp-includes/version.php ]; then
+    install_wordpress
 fi
 
 exec "$@"
