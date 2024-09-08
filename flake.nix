@@ -85,15 +85,15 @@
         packages = {
           wordpress-php81 = pkgs.buildwordpress-php {
             php = pkgs.php81Optimized;
-            name = "frankenphp-php81";
+            name = "wordpress-php81";
           };
           wordpress-php82 = pkgs.buildwordpress-php {
             php = pkgs.php82Optimized;
-            name = "frankenphp-php82";
+            name = "wordpress-php82";
           };
           wordpress-php83 = pkgs.buildwordpress-php {
             php = pkgs.php83Optimized;
-            name = "frankenphp-php83";
+            name = "wordpress-php83";
           };
         };
       }
