@@ -58,6 +58,7 @@
                     cp ${./docker-entrypoint.sh} docker-entrypoint.sh
                     chmod +x docker-entrypoint.sh
                     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
+                    ln -s ${pkgs.busybox}/bin/sh /usr/bin/bash
                   '';
                   config = {
                     Entrypoint = [ "/docker-entrypoint.sh" ];
