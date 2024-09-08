@@ -37,7 +37,7 @@
               php82Optimized = final.optimizePhp prev.php82;
               php83Optimized = final.optimizePhp prev.php83;
 
-              buildFrankenPhpImage = { php, name }: 
+              buildwordpress-php = { php, name }: 
                 final.dockerTools.buildLayeredImage {
                   inherit name;
                   tag = "latest";
@@ -82,15 +82,15 @@
         };
       in {
         packages = {
-          frankenphpImage81 = pkgs.buildFrankenPhpImage {
+          wordpress-php81 = pkgs.buildwordpress-php {
             php = pkgs.php81Optimized;
             name = "frankenphp-php81";
           };
-          frankenphpImage82 = pkgs.buildFrankenPhpImage {
+          wordpress-php82 = pkgs.buildwordpress-php {
             php = pkgs.php82Optimized;
             name = "frankenphp-php82";
           };
-          frankenphpImage83 = pkgs.buildFrankenPhpImage {
+          wordpress-php83 = pkgs.buildwordpress-php {
             php = pkgs.php83Optimized;
             name = "frankenphp-php83";
           };
