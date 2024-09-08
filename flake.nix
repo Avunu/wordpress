@@ -60,7 +60,7 @@
                     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
                   '';
                   config = {
-                    Entrypoint = [ "/usr/local/bin/docker-entrypoint.sh" ];
+                    Entrypoint = [ "/docker-entrypoint.sh" ];
                     Cmd = [ "frankenphp" "php-server" "--root" "/var/www/html" "--listen" "0.0.0.0:80" ];
                     ExposedPorts = {
                       "80/tcp" = {};
