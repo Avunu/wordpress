@@ -53,7 +53,7 @@
                     final.unzip
                   ];
                   extraCommands = ''
-                    mkdir -p var/www/html
+                    mkdir -p var/www/html usr/bin
                     cp ${./wp-config.php} wp-config.php
                     cp ${./docker-entrypoint.sh} docker-entrypoint.sh
                     chmod +x docker-entrypoint.sh
