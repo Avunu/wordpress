@@ -22,9 +22,6 @@ jobs:
     - name: Build Docker Images
       run: |
         nix build .#wordpress-php81 .#wordpress-php82 .#wordpress-php83
-        docker load < result
-        docker load < result-1
-        docker load < result-2
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v2
@@ -52,14 +49,17 @@ jobs:
         echo IMAGE_ID=$IMAGE_ID
         echo VERSION=$VERSION
         
-        # Get the actual image names from Docker
-        IMAGES=($(docker images --format "{{.Repository}}:{{.Tag}}" | grep wordpress))
-        
-        for IMAGE in "${IMAGES[@]}"; do
-          PHP_VERSION=$(echo $IMAGE | sed -n 's/.*-php\([0-9]\+\).*/\1/p')
+        # Load and push images
+        for result in result*; do
+          IMAGE_NAME=$(cat $result/image-name)
+          PHP_VERSION=$(echo $IMAGE_NAME | sed -n 's/.*-php\([0-9]\+\).*/\1/p')
           FULL_IMAGE_ID=$IMAGE_ID:php$PHP_VERSION
           
-          docker tag $IMAGE $FULL_IMAGE_ID
+          # Load the image
+          docker load < $result/${IMAGE_NAME}.tar.gz
+          
+          # Tag and push the image
+          docker tag $IMAGE_NAME:latest $FULL_IMAGE_ID
           docker push $FULL_IMAGE_ID
           
           if [ "$VERSION" == "latest" ]; then

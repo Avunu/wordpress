@@ -10,14 +10,15 @@ install_wordpress() {
     curl -o wordpress.zip "$WORDPRESS_SOURCE_URL"
     
     # Create a temporary directory for extraction
-    TEMP_DIR=$(mktemp -d)
-    unzip wordpress.zip -d "$TEMP_DIR"
+    TEMP_DIR="/tmp/wp_install_$(date +%s)"
+    mkdir -p "$TEMP_DIR"
     
     # Find WordPress files
     WP_ROOT=$(find "$TEMP_DIR" -name wp-config-sample.php -exec dirname {} \; | head -n 1)
     
     if [ -z "$WP_ROOT" ]; then
         echo "Error: WordPress files not found in the downloaded archive."
+        rm -rf "$TEMP_DIR"
         exit 1
     fi
     
@@ -58,7 +59,7 @@ import_db_mysql() {
 
 # Always copy the custom wp-config.php
 echo "Copying custom wp-config.php"
-cp /wp-config.php /var/www/html/wp-config.php
+cp /opt/wp-config.php /var/www/html/wp-config.php
 # chown nobody:nobody /var/www/html/wp-config.php
 chmod 644 /var/www/html/wp-config.php
 
