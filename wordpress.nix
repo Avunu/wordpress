@@ -22,7 +22,17 @@ let
     systemdSupport = false;
     valgrindSupport = false;
     ztsSupport = true; # Needed for FrankenPHP
+
+
   }).overrideAttrs (oldAttrs: {
+
+    # optimizations
+    extraConfig = ''
+      CFLAGS="$CFLAGS -march=x86-64-v3 -mtune=x86-64-v3 -O3 -flto"
+      CXXFLAGS="$CXXFLAGS -march=x86-64-v3 -mtune=x86-64-v3 -O3 -flto"
+      LDFLAGS="$LDFLAGS -flto"
+    '';
+    
     # Explicitly enable XML support
     configureFlags = (oldAttrs.configureFlags or [ ]) ++ [
       "--enable-xml"

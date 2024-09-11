@@ -1,58 +1,74 @@
-name: Build and Push WordPress Docker Images
+name: Build and Push WordPress Images
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
     - name: Install Nix
-      uses: cachix/install-nix-action@v27
+      uses: cachix/install-nix-action@v22
       with:
-        nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: |
+          experimental-features = nix-command flakes
 
-    - name: Log in to the Container registry
+    - name: Build Docker Images
+      run: |
+        nix build .#wordpress-php82 .#wordpress-php83 .#wordpress-php84
+        docker load < result
+        docker load < result-1
+        docker load < result-2
+
+    - name: Log in to GitHub Container Registry
       uses: docker/login-action@v2
       with:
-        registry: ${{ env.REGISTRY }}
+        registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push PHP 8.2 image
+    - name: Push images to GitHub Container Registry
       run: |
-        nix build .#wordpress-php82
-        docker load < result
-        docker tag wordpress-php82:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php82
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php82
+        IMAGE_ID=ghcr.io/${{ github.repository }}
+        
+        # Change all uppercase to lowercase
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        
+        # Strip git ref prefix from version
+        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        
+        # Strip "v" prefix from tag name
+        [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+        
+        # Use Docker `latest` tag convention
+        [ "$VERSION" == "main" ] && VERSION=latest
+        
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+        
+        # Get the actual image names from Docker
+        IMAGES=($(docker images --format "{{.Repository}}:{{.Tag}}" | grep wordpress))
+        
+        for IMAGE in "${IMAGES[@]}"; do
+          PHP_VERSION=$(echo $IMAGE | sed -n 's/.*-php\([0-9]\+\).*/\1/p')
+          FULL_IMAGE_ID=$IMAGE_ID:php$PHP_VERSION
+          
+          docker tag $IMAGE $FULL_IMAGE_ID
+          docker push $FULL_IMAGE_ID
+          
+          if [ "$VERSION" == "latest" ]; then
+            docker tag $FULL_IMAGE_ID $IMAGE_ID:latest-php$PHP_VERSION
+            docker push $IMAGE_ID:latest-php$PHP_VERSION
+          fi
+        done
 
-    - name: Build and push PHP 8.3 image
-      run: |
-        nix build .#wordpress-php83
-        docker load < result
-        docker tag wordpress-php83:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php83
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php83
-        docker tag wordpress-php83:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-    - name: Build and push PHP 8.4 image
-      run: |
-        nix build .#wordpress-php84
-        docker load < result
-        docker tag wordpress-php84:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php84
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php84
+        # Tag one version as the default latest
+        DEFAULT_PHP_VERSION=83
+        docker tag $IMAGE_ID:php$DEFAULT_PHP_VERSION $IMAGE_ID:latest
+        docker push $IMAGE_ID:latest
