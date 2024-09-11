@@ -34,21 +34,12 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push PHP 8.1 image
-      run: |
-        nix build .#wordpress-php81
-        docker load < result
-        docker tag wordpress-php81:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php81
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php81
-
     - name: Build and push PHP 8.2 image
       run: |
         nix build .#wordpress-php82
         docker load < result
         docker tag wordpress-php82:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php82
         docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php82
-        docker tag wordpress-php82:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
     - name: Build and push PHP 8.3 image
       run: |
@@ -56,3 +47,12 @@ jobs:
         docker load < result
         docker tag wordpress-php83:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php83
         docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php83
+        docker tag wordpress-php83:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+    - name: Build and push PHP 8.4 image
+      run: |
+        nix build .#wordpress-php84
+        docker load < result
+        docker tag wordpress-php84:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php84
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:php84

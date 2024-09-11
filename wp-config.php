@@ -40,6 +40,11 @@ if (isset($_SERVER['HTTP_HOST'])) {
     define( 'WP_SITEURL', 'https://' . $_SERVER['HTTP_HOST'] );
 }
 
+define('FS_METHOD', 'direct');
+define('WP_AUTO_UPDATE_CORE', 'minor');
+define('CONCATENATE_SCRIPTS', false);
+define('DISALLOW_FILE_EDIT', true);
+
 // That's all, stop editing! Happy publishing.
 if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', dirname( __FILE__ ) . '/' );

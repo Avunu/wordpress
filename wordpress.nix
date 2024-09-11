@@ -1,61 +1,113 @@
 { pkgs, php, imageName }:
 
 let
-  phpBuild = php.buildEnv {
-    extensions = { all, enabled }: with all; enabled ++ [
-      # Required extensions
-      mysqli
+  customPhp = (php.override {
+    # Sapi flags
+    cgiSupport = false;
+    cliSupport = true; # CLI is needed for FrankenPHP
+    fpmSupport = false;
+    pearSupport = false;
+    pharSupport = true; # Needed for Composer and some WordPress plugins
+    phpdbgSupport = false;
 
-      # Highly recommended extensions
-      curl
-      dom
-      exif
-      fileinfo
-      imagick
-      intl
-      mbstring
-      openssl
-      xml
-      zip
-
-      # Recommended for caching (choose one or more as needed)
-      opcache
-      # redis
-
-      # Optional extensions for improved functionality
-      gd
-      iconv
-      sodium
-
-      # Development extensions (can be removed in production)
-      # xdebug
+    # Misc flags
+    apxs2Support = false;
+    argon2Support = true; # Useful for password hashing
+    cgotoSupport = false;
+    embedSupport = true; # Needed for FrankenPHP
+    staticSupport = false;
+    ipv6Support = true;
+    zendSignalsSupport = false;
+    zendMaxExecutionTimersSupport = true;
+    systemdSupport = false;
+    valgrindSupport = false;
+    ztsSupport = true; # Needed for FrankenPHP
+  }).overrideAttrs (oldAttrs: {
+    # Explicitly enable XML support
+    configureFlags = (oldAttrs.configureFlags or [ ]) ++ [
+      "--enable-xml"
+      "--with-libxml"
     ];
+
+    buildInputs = (oldAttrs.buildInputs or [ ]) ++ [
+      pkgs.libxml2.dev
+    ];
+  });
+
+  phpWithExtensions = customPhp.withExtensions ({ all, ... }: with all; [
+    # Required extensions
+    mysqli
+
+    # Highly recommended extensions
+    curl
+    dom
+    exif
+    fileinfo
+    imagick
+    intl
+    mbstring
+    openssl
+    xml
+    zip
+
+    # Recommended for caching
+    opcache
+
+    # Optional extensions for improved functionality
+    gd
+    iconv
+    sodium
+
+    # Development extensions (uncomment if needed in production)
+    # xdebug
+  ]);
+
+  phpBuild = phpWithExtensions.buildEnv {
     extraConfig = ''
       memory_limit = 256M
       upload_max_filesize = 100M
       post_max_size = 100M
       max_execution_time = 300
+      zend.max_allowed_stack_size = -1
+      opcache.enable = 1
+      ffi.enable = 1
     '';
   };
+
+  frankenphp = (pkgs.frankenphp.override {
+    php = phpBuild;
+  }).overrideAttrs (oldAttrs: {
+    # Here we override the let...in section
+    phpEmbedWithZts = phpBuild;
+    phpUnwrapped = phpBuild.unwrapped;
+    phpConfig = "${phpBuild.unwrapped.dev}/bin/php-config";
+    # no musl support
+    pieBuild = false;
+  });
+
+  wp-cli = (pkgs.wp-cli.override {
+    php = phpBuild;
+  });
+
 in
 pkgs.dockerTools.buildLayeredImage {
   name = imageName;
   tag = "latest";
   contents = [
+    frankenphp
     phpBuild
     pkgs.busybox
     pkgs.cacert
-    pkgs.frankenphp
     pkgs.ghostscript
     pkgs.imagemagick
     pkgs.mysql.client
     pkgs.vips
-    pkgs.wp-cli
+    wp-cli
   ];
 
   config = {
     Entrypoint = [ "${pkgs.busybox}/bin/sh" "/docker-entrypoint.sh" ];
-    Cmd = [ "${pkgs.lib.getExe pkgs.frankenphp}" "php-server" "--root" "/var/www/html" "--listen" "0.0.0.0:80" ];
+    Cmd = [ "${pkgs.lib.getExe frankenphp}" "php-server" "--root" "/var/www/html" "--listen" "0.0.0.0:80" ];
     ExposedPorts = {
       "80/tcp" = { };
     };
