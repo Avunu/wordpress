@@ -43,28 +43,26 @@ pkgs.dockerTools.buildLayeredImage {
   tag = "latest";
   contents = [
     phpBuild
-    pkgs.bashInteractive
+    pkgs.busybox
     pkgs.cacert
-    pkgs.coreutils
-    pkgs.curl
-    pkgs.findutils
     pkgs.frankenphp
     pkgs.ghostscript
-    pkgs.gnused
     pkgs.imagemagick
     pkgs.mysql.client
-    pkgs.unzip
     pkgs.vips
+    pkgs.wp-cli
   ];
 
   config = {
-    Entrypoint = [ "/bin/bash" "/docker-entrypoint.sh" ];
-    Cmd = [ "frankenphp" "php-server" "--root" "/var/www/html" "--listen" "0.0.0.0:80" ];
+    Entrypoint = [ "${pkgs.busybox}/bin/sh" "/docker-entrypoint.sh" ];
+    Cmd = [ "${pkgs.lib.getExe pkgs.frankenphp}" "php-server" "--root" "/var/www/html" "--listen" "0.0.0.0:80" ];
     ExposedPorts = {
-      "80/tcp" = {};
+      "80/tcp" = { };
     };
     Env = [
+      "SERVER_NAME=0.0.0.0:80"
       "WORDPRESS_SOURCE_URL=https://wordpress.org/latest.zip"
+      "WORDPRESS_DB_URL="
       "WORDPRESS_DB_HOST=localhost"
       "WORDPRESS_DB_USER=wordpress"
       "WORDPRESS_DB_PASSWORD=wordpress"
@@ -81,10 +79,13 @@ pkgs.dockerTools.buildLayeredImage {
   };
 
   extraCommands = ''
+    # Copy WordPress files
     mkdir -p var/www/html
     cp ${./wp-config.php} wp-config.php
     cp ${./docker-entrypoint.sh} docker-entrypoint.sh
     chmod +x docker-entrypoint.sh
+
+    # Symlink CA certificates
     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
   '';
 }
