@@ -67,10 +67,10 @@ if [ ! -f /var/www/html/wp-includes/version.php ]; then
     install_wordpress
 fi
 
-# # Always copy the custom mu-plugins
-# echo "Copying custom mu-plugins"
-# cp -r /mu-plugins /var/www/html/wp-content/mu-plugins
-# chmod 755 /var/www/html/wp-content/mu-plugins
+# Always copy the custom mu-plugins
+echo "Copying custom mu-plugins"
+cp -r /mu-plugins /var/www/html/wp-content/mu-plugins
+chmod 755 /var/www/html/wp-content/mu-plugins
 
 # if PROC_TYPE=worker, then run cron jobs on the minute via wp-cli
 if [ "$PROC_TYPE" = "worker" ]; then

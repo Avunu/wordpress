@@ -148,6 +148,10 @@ pkgs.dockerTools.buildLayeredImage {
     cp ${./docker-entrypoint.sh} docker-entrypoint.sh
     chmod +x docker-entrypoint.sh
 
+    # copy must-use plugins
+    mkdir mu-plugins
+    cp ${./mu-plugins/loopback.php} mu-plugins/
+
     # Symlink CA certificates
     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
   '';
