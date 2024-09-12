@@ -24,6 +24,28 @@ services:
     depends_on:
       - db
 
+  worker:
+    # image: ghcr.io/avunu/wordpress:latest-php83
+    image: wordpress-php83:latest
+    volumes:
+      - ./wordpress:/var/www/html
+    environment:
+      - WORDPRESS_DB_HOST=db
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD=wordpresspassword
+      - WORDPRESS_DB_NAME=wordpress
+      - WORDPRESS_AUTH_KEY=${WORDPRESS_AUTH_KEY}
+      - WORDPRESS_SECURE_AUTH_KEY=${WORDPRESS_SECURE_AUTH_KEY}
+      - WORDPRESS_LOGGED_IN_KEY=${WORDPRESS_LOGGED_IN_KEY}
+      - WORDPRESS_NONCE_KEY=${WORDPRESS_NONCE_KEY}
+      - WORDPRESS_AUTH_SALT=${WORDPRESS_AUTH_SALT}
+      - WORDPRESS_SECURE_AUTH_SALT=${WORDPRESS_SECURE_AUTH_SALT}
+      - WORDPRESS_LOGGED_IN_SALT=${WORDPRESS_LOGGED_IN_SALT}
+      - WORDPRESS_NONCE_SALT=${WORDPRESS_NONCE_SALT}
+      - PROC_TYPE=worker
+    depends_on:
+      - db
+
   db:
     image: mysql:8.0
     volumes:

@@ -75,12 +75,29 @@ let
 
   phpBuild = phpWithExtensions.buildEnv {
     extraConfig = ''
-      memory_limit = 256M
+      ; Memory limits
+      memory_limit = -1    ; Increased to allow more memory for PHP
+      max_execution_time = 300   ; Allow longer execution time if needed
+      max_input_time = 120       ; Extend input processing time
+
+      ; Opcache settings
+      opcache.enable = 1
+      opcache.memory_consumption = 128   ; Increase opcache memory to improve script caching
+      opcache.max_accelerated_files = 20000  ; Higher number of files cached
+      opcache.interned_strings_buffer = 16   ; Increased for interned strings
+      opcache.jit_buffer_size = 64M     ; Enable JIT with a larger buffer
+      opcache.jit = tracing     ; Enable JIT for tracing mode, which may boost performance
+      opcache.validate_timestamps = 1    ; Keep enabled to handle dynamic file changes
+      opcache.revalidate_freq = 60       ; Check for file changes every 60 seconds
+
+      ; Database connection pooling
+      mysqli.max_persistent = 4    ; Allow more persistent connections for efficiency
+      mysqli.allow_persistent = 1   ; Enable persistent connections
+
+      ; Security settings
       upload_max_filesize = 100M
       post_max_size = 100M
-      max_execution_time = 300
       zend.max_allowed_stack_size = -1
-      opcache.enable = 1
       ffi.enable = 1
     '';
   };
@@ -142,6 +159,10 @@ pkgs.dockerTools.buildLayeredImage {
   };
 
   extraCommands = ''
+    # set up /tmp
+    mkdir -p tmp
+    chmod 1777 tmp
+
     # Copy WordPress files
     mkdir -p var/www/html
     cp ${./wp-config.php} wp-config.php

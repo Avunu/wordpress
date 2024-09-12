@@ -61,11 +61,6 @@ jobs:
           
           docker tag $IMAGE $FULL_IMAGE_ID
           docker push $FULL_IMAGE_ID
-          
-          if [ "$VERSION" == "latest" ]; then
-            docker tag $FULL_IMAGE_ID $IMAGE_ID:latest-php$PHP_VERSION
-            docker push $IMAGE_ID:latest-php$PHP_VERSION
-          fi
         done
 
         # Tag one version as the default latest
