@@ -72,13 +72,22 @@ echo "Copying custom mu-plugins"
 cp -r /mu-plugins /var/www/html/wp-content/mu-plugins
 chmod 755 /var/www/html/wp-content/mu-plugins
 
-# if PROC_TYPE=worker, then run cron jobs on the minute via wp-cli
-if [ "$PROC_TYPE" = "worker" ]; then
-    echo "Running cron jobs on the minute"
+# Function to run wp-cron
+run_wp_cron() {
     while true; do
-        wp cron event run --all --due-now --allow-root
+        echo "Running WordPress cron events"
+        if ! wp cron event run --all --due-now --allow-root; then
+            echo "Error running wp-cron. Retrying in 60 seconds."
+        fi
         sleep 60
     done
+}
+
+# If PROC_TYPE=worker, run cron jobs in the background
+if [ "$PROC_TYPE" = "worker" ]; then
+    echo "Starting wp-cron worker process"
+    run_wp_cron &
 fi
 
+# Execute the main command
 exec "$@"
