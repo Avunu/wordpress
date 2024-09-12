@@ -53,11 +53,11 @@ let
     dom
     exif
     fileinfo
+    filter
     imagick
     intl
     mbstring
     openssl
-    xml
     zip
 
     # Recommended for caching
