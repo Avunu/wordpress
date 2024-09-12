@@ -59,6 +59,7 @@ let
     mbstring
     openssl
     zip
+    zlib
 
     # Recommended for caching
     opcache
