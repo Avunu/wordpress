@@ -3,8 +3,8 @@
 set -e
 
 # Load environment variables
-if [ -f .env ]; then
-    export $(cat .env | xargs)
+if [ -f .env-github ]; then
+    export $(cat .env-github | xargs)
 fi
 
 # Check if required environment variables are set

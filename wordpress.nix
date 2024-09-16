@@ -58,6 +58,7 @@ let
     intl
     mbstring
     openssl
+    tokenizer
     zip
     zlib
 
@@ -76,28 +77,28 @@ let
   phpBuild = phpWithExtensions.buildEnv {
     extraConfig = ''
       ; Memory limits
-      memory_limit = -1    ; Increased to allow more memory for PHP
-      max_execution_time = 300   ; Allow longer execution time if needed
-      max_input_time = 120       ; Extend input processing time
+      memory_limit = 512M                     ; Increased to allow more memory for PHP
+      max_execution_time = 300                ; Allow longer execution time if needed
+      max_input_time = 120                    ; Extend input processing time
 
       ; Opcache settings
       opcache.enable = 1
-      opcache.memory_consumption = 128   ; Increase opcache memory to improve script caching
-      opcache.max_accelerated_files = 20000  ; Higher number of files cached
-      opcache.interned_strings_buffer = 16   ; Increased for interned strings
-      opcache.jit_buffer_size = 64M     ; Enable JIT with a larger buffer
-      opcache.jit = tracing     ; Enable JIT for tracing mode, which may boost performance
-      opcache.validate_timestamps = 1    ; Keep enabled to handle dynamic file changes
-      opcache.revalidate_freq = 60       ; Check for file changes every 60 seconds
+      opcache.memory_consumption = 128        ; Increase opcache memory to improve script caching
+      opcache.max_accelerated_files = 20000   ; Higher number of files cached
+      opcache.interned_strings_buffer = 16    ; Increased for interned strings
+      opcache.jit_buffer_size = 64M           ; Enable JIT with a larger buffer
+      opcache.jit = tracing                   ; Enable JIT compilation
+      opcache.validate_timestamps = 0         ; Keep enabled to handle dynamic file changes
+      opcache.revalidate_freq = 60            ; Check for file changes every 60 seconds
 
       ; Database connection pooling
-      mysqli.max_persistent = 4    ; Allow more persistent connections for efficiency
-      mysqli.allow_persistent = 1   ; Enable persistent connections
+      mysqli.max_persistent = 1               ; Allow more persistent connections for efficiency
+      mysqli.allow_persistent = 1             ; Enable persistent connections
 
       ; Security settings
       upload_max_filesize = 100M
       post_max_size = 100M
-      zend.max_allowed_stack_size = -1
+      zend.max_allowed_stack_size = 64M
       ffi.enable = 1
     '';
   };
@@ -135,7 +136,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   config = {
     Entrypoint = [ "${pkgs.busybox}/bin/sh" "/docker-entrypoint.sh" ];
-    Cmd = [ "${pkgs.lib.getExe frankenphp}" "php-server" "--root" "/var/www/html" "--listen" "0.0.0.0:80" ];
+    Cmd = [ "${pkgs.lib.getExe frankenphp}" ];
     ExposedPorts = {
       "80/tcp" = { };
     };
@@ -163,6 +164,10 @@ pkgs.dockerTools.buildLayeredImage {
     mkdir -p tmp
     chmod 1777 tmp
 
+    # copy Caddyfile
+    mkdir -p etc/caddy
+    cp ${./Caddyfile} etc/caddy/Caddyfile
+
     # Copy WordPress files
     mkdir -p var/www/html
     cp ${./wp-config.php} wp-config.php
@@ -175,5 +180,10 @@ pkgs.dockerTools.buildLayeredImage {
 
     # Symlink CA certificates
     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
+
+    # Symlink busybox for bash and env
+    mkdir -p usr/bin
+    ln -s ${pkgs.busybox}/bin/busybox usr/bin/bash
+    ln -s ${pkgs.busybox}/bin/busybox usr/bin/env
   '';
 }

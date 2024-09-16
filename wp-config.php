@@ -20,7 +20,7 @@ define('LOGGED_IN_SALT',   getenv('WORDPRESS_LOGGED_IN_SALT'));
 define('NONCE_SALT',       getenv('WORDPRESS_NONCE_SALT'));
 
 // Debug mode
-define('WP_DEBUG', !!getenv('WORDPRESS_DEBUG'));
+define('WP_DEBUG', !!getenv('WORDPRESS_DEBUG', '') );
 
 // Extra WordPress configs
 if ($extra = getenv('WORDPRESS_CONFIG_EXTRA')) {
@@ -53,9 +53,16 @@ define('WP_CACHE', true);
 define('WP_POST_REVISIONS', 5);
 define('EMPTY_TRASH_DAYS', 7);
 
-// That's all, stop editing! Happy publishing.
-if (! defined('ABSPATH')) {
-    define('ABSPATH', dirname(__FILE__) . '/');
+/* Add any custom values between this line and the "stop editing" line. */
+
+
+
+/* That's all, stop editing! Happy publishing. */
+
+/** Absolute path to the WordPress directory. */
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/' );
 }
 
-require_once(ABSPATH . 'wp-settings.php');
+/** Sets up WordPress vars and included files. */
+require_once ABSPATH . 'wp-settings.php';
