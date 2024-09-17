@@ -15,8 +15,19 @@ fi
 
 # Set variables
 REPOSITORY="ghcr.io/avunu/wordpress"
-PHP_VERSIONS=("php82" "php83" "php84")
+ALL_PHP_VERSIONS=("php82" "php83" "php84")
 DEFAULT_PHP_VERSION="php83"
+
+# Check if a specific PHP version is provided as an argument
+if [ $# -eq 1 ]; then
+    PHP_VERSIONS=("$1")
+    if [[ ! " ${ALL_PHP_VERSIONS[@]} " =~ " ${1} " ]]; then
+        echo "Error: Invalid PHP version. Allowed versions are: ${ALL_PHP_VERSIONS[*]}"
+        exit 1
+    fi
+else
+    PHP_VERSIONS=("${ALL_PHP_VERSIONS[@]}")
+fi
 
 # Login to GitHub Container Registry
 echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME -p $GITHUB_TOKEN

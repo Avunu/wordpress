@@ -2,7 +2,8 @@
 set -e
 
 # set shell as /bin/sh
-export SHELL=/bin/sh
+# export SHELL=/bin/sh
+# export WP_CLI_CUSTOM_SHELL=/bin/sh
 
 # Function to run wp-cron
 run_wp_cron() {
@@ -17,7 +18,7 @@ run_wp_cron() {
 
 # If PROC_TYPE=worker, run cron jobs in the background
 if [ "$PROC_TYPE" = "worker" ]; then
-    export WP_CLI_CUSTOM_SHELL=/bin/sh
+    # export WP_CLI_CUSTOM_SHELL=/bin/sh
     echo "Starting wp-cron worker process"
     run_wp_cron
 fi
