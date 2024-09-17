@@ -91,6 +91,12 @@ let
       opcache.interned_strings_buffer = 8
       opcache.validate_timestamps = 1
       opcache.revalidate_freq = 2
+      opcache.fast_shutdown = 1
+      opcache.enable_cli = 0
+
+      ; enable just-in-time compilation
+      opcache.jit = 1
+      opcache.jit_buffer_size = 64M
 
       ; Error handling
       error_reporting = E_ERROR | E_WARNING | E_PARSE | E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_COMPILE_WARNING | E_RECOVERABLE_ERROR
@@ -119,6 +125,15 @@ let
     php = phpBuild;
   });
 
+  start-server = pkgs.writeScriptBin "start-server" ''
+    #!${pkgs.runtimeShell}
+    # Start PHP-FPM
+    ${phpBuild}/bin/php-fpm -R --fpm-config ${./conf/php-fpm.conf} &
+
+    # Start Caddy
+    ${pkgs.lib.getExe pkgs.caddy} run --config ${./conf/Caddyfile}
+  '';
+
 in
 pkgs.dockerTools.buildLayeredImage {
   name = imageName;
@@ -141,7 +156,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   config = {
     Entrypoint = [ "${pkgs.lib.getExe pkgs.bashInteractive}" "/docker-entrypoint.sh" ];
-    Cmd = [ "${pkgs.lib.getExe pkgs.caddy}" "run" "--config" "/etc/caddy/Caddyfile" ];
+    Cmd = [ "start-server" ];
     ExposedPorts = {
       "80/tcp" = { };
     };
@@ -169,10 +184,6 @@ pkgs.dockerTools.buildLayeredImage {
     mkdir -p tmp
     chmod 1777 tmp
 
-    # copy Caddyfile
-    mkdir -p etc/caddy
-    cp ${./Caddyfile} etc/caddy/Caddyfile
-
     # enable Caddy logging
     mkdir -p var/log/caddy
     touch var/log/caddy/access.log
@@ -181,7 +192,7 @@ pkgs.dockerTools.buildLayeredImage {
 
     # Copy WordPress files
     mkdir -p var/www/html
-    cp ${./wp-config.php} wp-config.php
+    cp ${./conf/wp-config.php} wp-config.php
     cp ${./docker-entrypoint.sh} docker-entrypoint.sh
     chmod +x docker-entrypoint.sh
 
@@ -194,11 +205,6 @@ pkgs.dockerTools.buildLayeredImage {
 
     # Set up PHP-FPM socket directory
     mkdir -p run
-    chmod 755 run
-
-    # Create PHP-FPM configuration
-    mkdir -p etc/php-fpm.d
-    cp ${./php-fpm.conf} etc/php-fpm.conf
-    cp ${./www.conf} etc/php-fpm.d/www.conf
+    chmod 777 run
   '';
 }

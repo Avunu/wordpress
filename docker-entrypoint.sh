@@ -1,8 +1,6 @@
 #!/bin/sh
 set -e
 
-php-fpm &
-
 # set shell as /bin/sh
 # export SHELL=/bin/sh
 # export WP_CLI_CUSTOM_SHELL=/bin/sh
@@ -97,4 +95,6 @@ cp -r /mu-plugins /var/www/html/wp-content/mu-plugins
 chmod 755 /var/www/html/wp-content/mu-plugins
 
 # Execute the main command
+php-fpm --fpm-config /etc/php-fpm.conf &
+
 exec "$@"
