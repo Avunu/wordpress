@@ -2,6 +2,10 @@
 {
 	{$CADDY_GLOBAL_OPTIONS}
 
+	frankenphp {
+		{$FRANKENPHP_CONFIG}
+	}
+
 	servers {
 		timeouts {
 			read_body 10s
@@ -14,10 +18,12 @@
 		trusted_proxies static private_ranges
 		client_ip_headers X-Forwarded-For
 		protocols h1
+		enable_full_duplex
 		strict_sni_host on
 	}
 
-	order php_fastcgi before file_server
+	order php_server before file_server
+	order php before file_server
 }
 
 :80 {
@@ -32,12 +38,6 @@
 	# Include any extra directives
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
-	# PHP-FPM handling
-	php_fastcgi unix//run/php-fpm.sock
-
-	# Serve static files directly
-	file_server @static
-
-	# Try files or directories, falling back to index.php
-	try_files {path} {path}/ /index.php?{query}
+	# PHP handling
+	php_server
 }

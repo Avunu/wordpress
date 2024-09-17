@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+php-fpm &
+
 # set shell as /bin/sh
 # export SHELL=/bin/sh
 # export WP_CLI_CUSTOM_SHELL=/bin/sh
