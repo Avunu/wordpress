@@ -84,12 +84,23 @@ let
       ; Opcache settings
       opcache.enable = 1
       opcache.memory_consumption = 128        ; Increase opcache memory to improve script caching
-      opcache.max_accelerated_files = 20000   ; Higher number of files cached
-      opcache.interned_strings_buffer = 16    ; Increased for interned strings
+      opcache.max_accelerated_files = 4000    ; Higher number of files cached
+      opcache.interned_strings_buffer = 8     ; Increased for interned strings
       opcache.jit_buffer_size = 64M           ; Enable JIT with a larger buffer
       opcache.jit = tracing                   ; Enable JIT compilation
       opcache.validate_timestamps = 0         ; Keep enabled to handle dynamic file changes
-      opcache.revalidate_freq = 60            ; Check for file changes every 60 seconds
+      opcache.revalidate_freq = 2             ; Check for file changes every 60 seconds
+
+      ; Error handling
+      error_reporting = E_ERROR | E_WARNING | E_PARSE | E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_COMPILE_WARNING | E_RECOVERABLE_ERROR
+      display_errors = Off
+      display_startup_errors = Off
+      log_errors = On
+      error_log = /dev/stderr
+      log_errors_max_len = 1024
+      ignore_repeated_errors = On
+      ignore_repeated_source = Off
+      html_errors = Off
 
       ; Database connection pooling
       mysqli.max_persistent = 1               ; Allow more persistent connections for efficiency
@@ -136,7 +147,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   config = {
     Entrypoint = [ "${pkgs.busybox}/bin/sh" "/docker-entrypoint.sh" ];
-    Cmd = [ "${pkgs.lib.getExe frankenphp}" ];
+    Cmd = [ "${pkgs.lib.getExe frankenphp}" "run" "--config" "/etc/caddy/Caddyfile"];
     ExposedPorts = {
       "80/tcp" = { };
     };
