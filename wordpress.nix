@@ -15,12 +15,12 @@ let
     argon2Support = true;
     cgotoSupport = false;
     embedSupport = false; # Not needed for standard PHP-FPM
-    staticSupport = false;
     ipv6Support = true;
-    zendSignalsSupport = false;
-    zendMaxExecutionTimersSupport = true;
+    staticSupport = false;
     systemdSupport = false;
     valgrindSupport = false;
+    zendMaxExecutionTimersSupport = false;
+    zendSignalsSupport = true;
     ztsSupport = false; # Not needed for standard PHP-FPM
 
   }).overrideAttrs (oldAttrs: rec {
@@ -198,6 +198,7 @@ pkgs.dockerTools.buildLayeredImage {
 
     # Create PHP-FPM configuration
     mkdir -p etc/php-fpm.d
-    cp ${./www.conf} etc/php-fpm.d/www.conf;
+    cp ${./php-fpm.conf} etc/php-fpm.conf
+    cp ${./www.conf} etc/php-fpm.d/www.conf
   '';
 }

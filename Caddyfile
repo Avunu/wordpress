@@ -27,7 +27,6 @@
 	}
 
 	root * /var/www/html/
-	encode br zstd gzip
 
 	# Include any extra directives
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
