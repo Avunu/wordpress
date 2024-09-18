@@ -52,13 +52,7 @@ install_wordpress() {
 
     # Import database if WORDPRESS_DB_URL is set
     if [ -n "${WORDPRESS_DB_URL:-}" ]; then
-        if command -v wp >/dev/null 2>&1; then
-            import_db_wp_cli
-        elif command -v mysql >/dev/null 2>&1; then
-            import_db_mysql
-        else
-            echo "Error: Neither wp-cli nor mysql cli are available. Cannot import database."
-        fi
+        import_db_wp_cli
     fi
 }
 

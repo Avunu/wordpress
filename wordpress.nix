@@ -148,7 +148,7 @@ pkgs.dockerTools.buildLayeredImage {
 
     # copy must-use plugins
     mkdir mu-plugins
-    cp -r ${./mu-plugins/.} mu-plugins/
+    cp -r ${./mu-plugins}/. mu-plugins/
 
     # Symlink CA certificates
     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
