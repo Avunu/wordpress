@@ -2,8 +2,8 @@
 set -e
 
 # set shell as /bin/sh
-# export SHELL=/bin/sh
-# export WP_CLI_CUSTOM_SHELL=/bin/sh
+export SHELL=/bin/sh
+export WP_CLI_CUSTOM_SHELL=/bin/sh
 
 # Function to run wp-cron
 run_wp_cron() {
@@ -18,7 +18,6 @@ run_wp_cron() {
 
 # If PROC_TYPE=worker, run cron jobs in the background
 if [ "$PROC_TYPE" = "worker" ]; then
-    # export WP_CLI_CUSTOM_SHELL=/bin/sh
     echo "Starting wp-cron worker process"
     run_wp_cron
 fi
@@ -67,7 +66,7 @@ install_wordpress() {
 import_db_wp_cli() {
     echo "Importing database using wp-cli from: $WORDPRESS_DB_URL"
     wget -O db_dump.sql "$WORDPRESS_DB_URL"
-    wp db import db_dump.sql --allow-root
+    wp db import db_dump.sql --allow-root --path=/var/www/html
     rm db_dump.sql
 }
 
@@ -77,6 +76,13 @@ import_db_mysql() {
     wget -O db_dump.sql "$WORDPRESS_DB_URL"
     mysql -h"$WORDPRESS_DB_HOST" -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" "$WORDPRESS_DB_NAME" < db_dump.sql
     rm db_dump.sql
+}
+
+# function to set up the salts
+setup_salts() {
+    echo "Setting up salts"
+    echo "<?php" > /var/www/html/wp-salts.php
+    wget -qO- https://api.wordpress.org/secret-key/1.1/salt/ >> /var/www/html/wp-salts.php
 }
 
 # Always copy the custom wp-config.php
@@ -89,12 +95,17 @@ if [ ! -f /var/www/html/wp-includes/version.php ]; then
     install_wordpress
 fi
 
+# Check if salts are needed
+if [ ! -f /var/www/html/wp-salts.php ]; then
+    setup_salts
+fi
+
 # Always copy the custom mu-plugins
 echo "Copying custom mu-plugins"
-cp -r /mu-plugins /var/www/html/wp-content/mu-plugins
+rm -rf /var/www/html/wp-content/mu-plugins
+mkdir -p /var/www/html/wp-content/mu-plugins
+cp -a /mu-plugins/. /var/www/html/wp-content/mu-plugins/
 chmod 755 /var/www/html/wp-content/mu-plugins
 
 # Execute the main command
-php-fpm --fpm-config /etc/php-fpm.conf &
-
 exec "$@"

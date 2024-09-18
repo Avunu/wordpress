@@ -5,7 +5,7 @@ let
     # Sapi flags
     cgiSupport = false;
     cliSupport = true;
-    fpmSupport = true; # Enable FPM support
+    fpmSupport = false;
     pearSupport = false;
     pharSupport = true;
     phpdbgSupport = false;
@@ -14,14 +14,14 @@ let
     apxs2Support = false;
     argon2Support = true;
     cgotoSupport = false;
-    embedSupport = false; # Not needed for standard PHP-FPM
+    embedSupport = true;
     ipv6Support = true;
     staticSupport = false;
     systemdSupport = false;
     valgrindSupport = false;
-    zendMaxExecutionTimersSupport = false;
-    zendSignalsSupport = true;
-    ztsSupport = false; # Not needed for standard PHP-FPM
+    zendMaxExecutionTimersSupport = true;
+    zendSignalsSupport = false;
+    ztsSupport = true;
 
   }).overrideAttrs (oldAttrs: rec {
     # Use Clang instead of GCC
@@ -52,6 +52,7 @@ let
     mysqli
 
     # Highly recommended extensions
+    ctype
     curl
     dom
     exif
@@ -61,6 +62,8 @@ let
     intl
     mbstring
     openssl
+    pdo
+    pdo_mysql
     tokenizer
     zip
     zlib
@@ -78,61 +81,31 @@ let
   ]);
 
   phpBuild = phpWithExtensions.buildEnv {
-    extraConfig = ''
-      ; Memory limits
-      memory_limit = 512M
-      max_execution_time = 300
-      max_input_time = 120
-
-      ; Opcache settings
-      opcache.enable = 1
-      opcache.memory_consumption = 128
-      opcache.max_accelerated_files = 4000
-      opcache.interned_strings_buffer = 8
-      opcache.validate_timestamps = 1
-      opcache.revalidate_freq = 2
-      opcache.fast_shutdown = 1
-      opcache.enable_cli = 0
-
-      ; enable just-in-time compilation
-      opcache.jit = 1
-      opcache.jit_buffer_size = 64M
-
-      ; Error handling
-      error_reporting = E_ERROR | E_WARNING | E_PARSE | E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_COMPILE_WARNING | E_RECOVERABLE_ERROR
-      display_errors = On
-      display_startup_errors = On
-      log_errors = On
-      error_log = /dev/stderr
-      log_errors_max_len = 1024
-      ignore_repeated_errors = On
-      ignore_repeated_source = Off
-      html_errors = On
-
-      ; Database connection pooling
-      mysqli.max_persistent = 1
-      mysqli.allow_persistent = 1
-
-      ; Security settings
-      upload_max_filesize = 100M
-      post_max_size = 100M
-      zend.max_allowed_stack_size = 64M
-      ffi.enable = 0
-    '';
+    extraConfig = builtins.readFile ./conf/php.ini;
   };
 
   wp-cli = (pkgs.wp-cli.override {
     php = phpBuild;
   });
 
-  start-server = pkgs.writeScriptBin "start-server" ''
-    #!${pkgs.runtimeShell}
-    # Start PHP-FPM
-    ${phpBuild}/bin/php-fpm -R --fpm-config ${./conf/php-fpm.conf} &
+  frankenphp = (pkgs.frankenphp.override {
+    php = phpBuild;
+  }).overrideAttrs (oldAttrs: {
+    # Here we override the let...in section
+    phpEmbedWithZts = phpBuild;
+    phpUnwrapped = phpBuild.unwrapped;
+    phpConfig = "${phpBuild.unwrapped.dev}/bin/php-config";
+  });
 
-    # Start Caddy
-    ${pkgs.lib.getExe pkgs.caddy} run --config ${./conf/Caddyfile}
+  caddyfile = pkgs.writeText "Caddyfile" (builtins.readFile ./conf/Caddyfile);
+
+  start-server = pkgs.writeScriptBin "start-server" ''
+    #!${pkgs.busybox}/bin/sh
+    # Start Caddy/frankenphp
+    ${pkgs.lib.getExe frankenphp} run --config ${caddyfile} --adapter caddyfile
   '';
+
+  docker-entrypoint = pkgs.writeScriptBin "docker-entrypoint" (builtins.readFile ./docker-entrypoint.sh);
 
 in
 pkgs.dockerTools.buildLayeredImage {
@@ -140,43 +113,22 @@ pkgs.dockerTools.buildLayeredImage {
   tag = "latest";
   contents = [
     phpBuild
-    pkgs.bashInteractive
+    pkgs.busybox
     pkgs.cacert
-    pkgs.caddy
-    pkgs.coreutils
     pkgs.ghostscript
     pkgs.imagemagick
     pkgs.mysql.client
-    pkgs.ncurses
-    pkgs.unzip
     pkgs.vips
-    pkgs.wget
+    pkgs.zip
     wp-cli
   ];
 
   config = {
-    Entrypoint = [ "${pkgs.lib.getExe pkgs.bashInteractive}" "/docker-entrypoint.sh" ];
-    Cmd = [ "start-server" ];
+    Entrypoint = [ "${pkgs.busybox}/bin/sh" "${pkgs.lib.getExe docker-entrypoint}" ];
+    Cmd = [ "${pkgs.lib.getExe start-server}" ];
     ExposedPorts = {
       "80/tcp" = { };
     };
-    Env = [
-      "SERVER_NAME=0.0.0.0:80"
-      "WORDPRESS_SOURCE_URL=https://wordpress.org/latest.zip"
-      "WORDPRESS_DB_URL="
-      "WORDPRESS_DB_HOST=localhost"
-      "WORDPRESS_DB_USER=wordpress"
-      "WORDPRESS_DB_PASSWORD=wordpress"
-      "WORDPRESS_DB_NAME=wordpress"
-      "WORDPRESS_AUTH_KEY=key"
-      "WORDPRESS_SECURE_AUTH_KEY=key"
-      "WORDPRESS_LOGGED_IN_KEY=key"
-      "WORDPRESS_NONCE_KEY=key"
-      "WORDPRESS_AUTH_SALT=key"
-      "WORDPRESS_SECURE_AUTH_SALT=key"
-      "WORDPRESS_LOGGED_IN_SALT=key"
-      "WORDPRESS_NONCE_SALT=key"
-    ];
   };
 
   extraCommands = ''
@@ -193,12 +145,10 @@ pkgs.dockerTools.buildLayeredImage {
     # Copy WordPress files
     mkdir -p var/www/html
     cp ${./conf/wp-config.php} wp-config.php
-    cp ${./docker-entrypoint.sh} docker-entrypoint.sh
-    chmod +x docker-entrypoint.sh
 
     # copy must-use plugins
     mkdir mu-plugins
-    cp ${./mu-plugins/loopback.php} mu-plugins/
+    cp -r ${./mu-plugins/.} mu-plugins/
 
     # Symlink CA certificates
     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
@@ -206,5 +156,10 @@ pkgs.dockerTools.buildLayeredImage {
     # Set up PHP-FPM socket directory
     mkdir -p run
     chmod 777 run
+
+    # Symlink busybox for bash and env
+    mkdir -p usr/bin
+    ln -s ${pkgs.busybox}/bin/busybox usr/bin/bash
+    ln -s ${pkgs.busybox}/bin/busybox usr/bin/env
   '';
 }

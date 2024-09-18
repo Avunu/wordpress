@@ -10,14 +10,7 @@ define('DB_COLLATE', '');
 $table_prefix = getenv('WORDPRESS_TABLE_PREFIX') ?: 'wp_';
 
 // Authentication Unique Keys and Salts
-define('AUTH_KEY',         getenv('WORDPRESS_AUTH_KEY'));
-define('SECURE_AUTH_KEY',  getenv('WORDPRESS_SECURE_AUTH_KEY'));
-define('LOGGED_IN_KEY',    getenv('WORDPRESS_LOGGED_IN_KEY'));
-define('NONCE_KEY',        getenv('WORDPRESS_NONCE_KEY'));
-define('AUTH_SALT',        getenv('WORDPRESS_AUTH_SALT'));
-define('SECURE_AUTH_SALT', getenv('WORDPRESS_SECURE_AUTH_SALT'));
-define('LOGGED_IN_SALT',   getenv('WORDPRESS_LOGGED_IN_SALT'));
-define('NONCE_SALT',       getenv('WORDPRESS_NONCE_SALT'));
+require_once('/var/www/html/wp-salts.php');
 
 // Debug mode
 define('WP_DEBUG', !!getenv('WORDPRESS_DEBUG', '') );
@@ -32,18 +25,8 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
     $_SERVER['HTTPS'] = 'on';
 }
 
-if (isset($_SERVER['HTTP_HOST'])) {
-    if ($_SERVER['HTTP_HOST'] === 'localhost') {
-        define('WP_SITEURL', 'http://localhost' . $_SERVER['SERVER_PORT']);
-        define('WP_HOME', 'http://localhost' . $_SERVER['SERVER_PORT']);
-        define('FORCE_SSL_ADMIN', false);
-    } else {
-        define('WP_HOME', 'https://' . $_SERVER['HTTP_HOST']);
-        define('WP_SITEURL', 'https://' . $_SERVER['HTTP_HOST']);
-        define('FORCE_SSL_ADMIN', true);
-    }
-}
-
+define('WP_HOME', getenv('WORDPRESS_HOME'));
+define('WP_SITEURL', getenv('WORDPRESS_SITE_URL'));
 define('FS_METHOD', 'direct');
 define('WP_AUTO_UPDATE_CORE', 'minor');
 define('CONCATENATE_SCRIPTS', false);

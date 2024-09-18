@@ -1,4 +1,5 @@
 .env-github
+.env-private
 result
 result*
 wordpress
