@@ -36,7 +36,7 @@ let
       LDFLAGS="$LDFLAGS -flto"
     '';
 
-    # Explicitly enable XML support
+    # Explicitly enable XML support (required by FrankenPHP)
     configureFlags = (oldAttrs.configureFlags or [ ]) ++ [
       "--enable-xml"
       "--with-libxml"
@@ -94,19 +94,12 @@ let
   frankenphp = (pkgs.frankenphp.override {
     php = phpBuild;
   }).overrideAttrs (oldAttrs: {
-    # Here we override the let...in section
     phpEmbedWithZts = phpBuild;
     phpUnwrapped = phpBuild.unwrapped;
     phpConfig = "${phpBuild.unwrapped.dev}/bin/php-config";
   });
 
   caddyfile = pkgs.writeText "Caddyfile" (builtins.readFile ./conf/Caddyfile);
-
-  start-server = pkgs.writeScriptBin "start-server" ''
-    #!${pkgs.busybox}/bin/sh
-    # Start Caddy/frankenphp
-    ${pkgs.lib.getExe frankenphp} run --config ${caddyfile} --adapter caddyfile
-  '';
 
   docker-entrypoint = pkgs.writeScriptBin "docker-entrypoint" (builtins.readFile ./docker-entrypoint.sh);
 
@@ -128,7 +121,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   config = {
     Entrypoint = [ "${pkgs.busybox}/bin/sh" "${pkgs.lib.getExe docker-entrypoint}" ];
-    Cmd = [ "${pkgs.lib.getExe start-server}" ];
+    Cmd = [ "${pkgs.lib.getExe frankenphp}" "run" "--config" "${caddyfile}" "--adapter" "caddyfile" ];
     ExposedPorts = {
       "80/tcp" = { };
     };
@@ -138,12 +131,6 @@ pkgs.dockerTools.buildLayeredImage {
     # set up /tmp
     mkdir -p tmp
     chmod 1777 tmp
-
-    # enable Caddy logging
-    mkdir -p var/log/caddy
-    touch var/log/caddy/access.log
-    touch var/log/caddy/error.log
-    chmod -R 777 var/log/caddy
 
     # Copy WordPress files
     mkdir -p var/www/html
@@ -156,11 +143,7 @@ pkgs.dockerTools.buildLayeredImage {
     # Symlink CA certificates
     ln -s ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt etc/ssl/certs/ca-certificates.crt
 
-    # Set up PHP-FPM socket directory
-    mkdir -p run
-    chmod 777 run
-
-    # Symlink busybox for bash and env
+    # Symlink busybox for bash and env (required by wp-cli)
     mkdir -p usr/bin
     ln -s ${pkgs.busybox}/bin/busybox usr/bin/bash
     ln -s ${pkgs.busybox}/bin/busybox usr/bin/env
