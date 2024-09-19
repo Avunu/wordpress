@@ -7,8 +7,8 @@
 
 	servers {
 		timeouts {
-			read_body 10s
-			read_header 10s
+			read_body 100s
+			read_header 100s
 			write 100s
 			idle 100s
 		}

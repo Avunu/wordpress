@@ -58,13 +58,16 @@ let
     exif
     fileinfo
     filter
-    imagick
+    # imagick
     intl
     mbstring
     openssl
     pdo
     pdo_mysql
+    session
+    simplexml
     tokenizer
+    xmlwriter
     zip
     zlib
 
@@ -115,10 +118,10 @@ pkgs.dockerTools.buildLayeredImage {
     phpBuild
     pkgs.busybox
     pkgs.cacert
-    pkgs.ghostscript
-    pkgs.imagemagick
+    # pkgs.ghostscript
+    # pkgs.imagemagick
     pkgs.mysql.client
-    pkgs.vips
+    # pkgs.vips
     pkgs.zip
     wp-cli
   ];
