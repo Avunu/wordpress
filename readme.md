@@ -60,10 +60,7 @@ GITHUB_TOKEN=your_personal_access_token
 
 ## GitHub Actions
 
-The included GitHub Actions workflow automatically builds and pushes images to ghcr.io on pushes to the main branch. Ensure your repository has the necessary secrets set up:
-
-* `GHCR_USERNAME`: Your GitHub username
-* `GHCR_TOKEN`: A Personal Access Token with the necessary permissions
+The included GitHub Actions workflow automatically builds and pushes images to ghcr.io on pushes to the main branch.
 
 ## Contributing
 
