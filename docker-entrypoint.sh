@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+# if wordpress is in maintenance mode, remove it
+if [ -f /var/www/html/.maintenance ]; then
+    rm /var/www/html/.maintenance
+fi
+
 # set shell as /bin/sh
 export SHELL=/bin/sh
 export WP_CLI_CUSTOM_SHELL=/bin/sh
