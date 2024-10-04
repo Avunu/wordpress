@@ -9,7 +9,7 @@ fi
 
 # Check if required environment variables are set
 if [ -z "$GITHUB_USERNAME" ] || [ -z "$GITHUB_TOKEN" ]; then
-    echo "Error: GITHUB_USERNAME and GITHUB_TOKEN must be set in .env file"
+    echo "Error: GITHUB_USERNAME and GITHUB_TOKEN must be set in .env-github file"
     exit 1
 fi
 

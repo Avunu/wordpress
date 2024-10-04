@@ -58,6 +58,7 @@ let
     exif
     fileinfo
     filter
+    igbinary
     # imagick
     intl
     mbstring

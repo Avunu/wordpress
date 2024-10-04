@@ -35,6 +35,7 @@ define('DISABLE_WP_CRON', true);
 define('WP_CACHE', true);
 define('WP_POST_REVISIONS', 5);
 define('EMPTY_TRASH_DAYS', 7);
+define('WP_MEMORY_LIMIT', '1G');
 
 /* Add any custom values between this line and the "stop editing" line. */
 
