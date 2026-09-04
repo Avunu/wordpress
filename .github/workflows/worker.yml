@@ -21,8 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # `determinate: false` — no Determinate-only nixConfig here, so the
+      # default install just has determinate-nixd fail to log into FlakeHub
+      # for a repo that isn't registered there.
       - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          determinate: false
+      # `use-flakehub: false` — same reason, for the cache action's own probe.
       - uses: DeterminateSystems/magic-nix-cache-action@v14
+        with:
+          use-flakehub: false
 
       - name: Materialize the pinned sqlite-database-integration source
         run: nix build .#sqlite-driver-src -o .sqlite-src
