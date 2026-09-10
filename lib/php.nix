@@ -16,6 +16,10 @@
   extraExtensions ? (_all: [ ]),
   # Extra php.ini lines appended after conf/php.ini (later keys win).
   iniExtra ? "",
+  # Build opcache with JIT support. nixpkgs disables it for every ZTS build
+  # (see jitPhp below), which silently makes conf/php.ini's `opcache.jit`
+  # directive inert -- and FrankenPHP requires ZTS, so that is every build here.
+  jit ? true,
 }:
 let
   inherit (pkgs) lib;
@@ -33,7 +37,27 @@ let
       "";
   optCFlags = "${archFlags} -O3 -ffast-math -flto";
 
-  basePhp = php.override {
+  # nixpkgs builds the opcache extension with --disable-opcache-jit whenever
+  # ztsSupport is set (pkgs/top-level/php-packages.nix:827). FrankenPHP needs
+  # ZTS, so conf/php.ini's `opcache.jit = tracing` has never taken effect here:
+  # the directive does not exist at runtime and ini_get() returns false.
+  #
+  # Dropping the flag is worth -21% TTFB and +21% requests per vCPU on a real
+  # WordPress page, for ~0.16 s of cold start and ~20 MB of RSS.
+  # Measured in wordpress-moonshot/BENCHMARK.md.
+  jitPhp =
+    if jit then
+      php.override {
+        packageOverrides = _final: prev: {
+          extensions = prev.extensions // {
+            opcache = prev.extensions.opcache.overrideAttrs (_: { configureFlags = [ ]; });
+          };
+        };
+      }
+    else
+      php;
+
+  basePhp = jitPhp.override {
     # SAPI flags
     cgiSupport = false;
     cliSupport = true;
