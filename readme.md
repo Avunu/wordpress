@@ -25,6 +25,7 @@ Both paths share the same optimized ZTS PHP build (`lib/php.nix`) and FrankenPHP
 ```
 flake.nix                 # outputs: nixosModules.default, lib, packages, checks
 lib/{php,frankenphp,wordpress}.nix   # shared builders
+lib/turso-publisher.nix   # the Turso snapshot publisher (database.type = "turso")
 modules/nixos.nix         # services.wordpress-nix
 modules/containers.nix    # OCI image build (reuses lib/)
 conf/{php.ini,Caddyfile,wp-config.php}
@@ -92,6 +93,68 @@ Notes:
 * Run wp-cli as the service user: `sudo -u wordpress wp ...`.
 * In git mode UI-driven plugin/theme installs are disabled (`DISALLOW_FILE_MODS`) —
   manage them in the source.
+
+### Database backends
+
+`services.wordpress-nix.database.type` selects where the data lives.
+
+| | |
+|---|---|
+| `mysql` | MariaDB/MySQL, local or external. The default. |
+| `d1` | Cloudflare D1 through the site Worker's authenticated `/__d1` proxy. |
+| `turso` | A Turso database over SQL-over-HTTP, optionally reading from a locally published snapshot. |
+
+Both remote backends run the MySQL-on-SQLite driver in place of MySQL, and the
+module installs the matching `wp-content/db.php` drop-in for you.
+
+#### Turso
+
+Two shapes, chosen by whether `database.turso.snapshotPath` is set.
+
+**Without a snapshot**, every statement goes to the primary. This is what the
+control plane wants — wp-admin and cron must read their own writes immediately.
+Co-locate the primary: per-statement latency is what a query-heavy admin page
+multiplies, and a local `tursodb --sync-server` answers in ~156 µs where a WAN
+round trip would not.
+
+```nix
+services.wordpress-nix = {
+  enable = true;
+  database.type = "turso";
+  database.turso.url = "http://127.0.0.1:8080";
+};
+```
+
+**With a snapshot**, reads come from a local SQLite file and writes go to the
+primary; the first write latches the rest of the request to the primary so it
+reads its own writes. This is the public front end, where rendering a page never
+touches the network — measured at 22 ms per page and ~41 requests/second per
+vCPU, indistinguishable from reading the database file directly.
+
+```nix
+services.wordpress-nix = {
+  enable = true;
+  database.type = "turso";
+  database.turso = {
+    url = "libsql://site-org.turso.io";
+    tokenFile = "/run/agenix/site-turso-token";
+    snapshotPath = "/var/lib/wordpress/database/snapshot.db";
+    publishIntervalSeconds = 10;
+  };
+};
+```
+
+Setting `snapshotPath` starts `wordpress-turso-publisher`, which keeps the
+snapshot current and publishes the first one before WordPress starts. **Front-end
+reads are behind the primary by up to `publishIntervalSeconds`** — a real
+semantic change worth documenting per site, though it composes with page caching,
+which already means the public site lags the database by a bounded amount.
+
+The snapshot exists because a live Turso embedded replica cannot be read by
+`pdo_sqlite` at all: Turso holds an exclusive lock on it for the life of its
+connection and coordinates its WAL through a file SQLite knows nothing about. The
+publisher owns the replica and hands PHP a plain file instead. Nothing else may
+touch `database.turso.replicaPath`.
 
 ## Containers
 

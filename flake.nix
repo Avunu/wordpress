@@ -10,7 +10,7 @@
     # .gitattributes marks /packages as export-ignore for WordPress.org
     # release exports, which would exclude it from archive downloads.
     sqlite-database-integration = {
-      url = "git+https://github.com/Avunu/sqlite-database-integration?ref=d1-support";
+      url = "git+https://github.com/Avunu/sqlite-database-integration?ref=turso-support";
       flake = false;
     };
   };
@@ -24,10 +24,10 @@
     }:
     {
       # Deploy WordPress directly on NixOS. See readme.md for usage.
-      # The flake wiring injects the D1 driver source + Rust toolchain pin,
-      # enabling `database.type = "d1"` and the managed backend mode.
+      # The flake wiring injects the SQLite driver source + Rust toolchain pin,
+      # enabling `database.type = "d1"` / `"turso"` and the managed backend mode.
       nixosModules.default = import ./modules/nixos.nix {
-        d1DriverSrc = sqlite-database-integration;
+        driverSrc = sqlite-database-integration;
         rustNixpkgs = nixpkgs;
       };
       nixosModules.wordpress-nix = self.nixosModules.default;
@@ -74,6 +74,15 @@
         # The Worker-Assets static tree for the same pinned core + wp-content.
         #   mkStaticAssets { inherit pkgs; wpContent = ./wp-content; }
         mkStaticAssets = import ./lib/static-assets.nix;
+
+        # The Turso snapshot publisher, built from the pinned driver source.
+        #   mkTursoPublisher { inherit pkgs; }
+        mkTursoPublisher =
+          { pkgs, rustPkgs ? pkgs }:
+          import ./lib/turso-publisher.nix {
+            inherit pkgs rustPkgs;
+            src = sqlite-database-integration;
+          };
 
         # The bundled edge Worker (site-agnostic; one artifact per platform
         # version). `entry` is the escape hatch for site-custom routes.
@@ -134,6 +143,10 @@
             };
             d1DriverSrc = sqlite-database-integration;
           };
+          # The Turso snapshot publisher: the front end's read path. A live Turso
+          # replica cannot be read by pdo_sqlite, so this hands PHP a plain
+          # SQLite file instead. See the package's README.
+          turso-snapshot-publisher = self.lib.mkTursoPublisher { inherit pkgs; };
           # The pinned sqlite-database-integration source, materializable in
           # CI (worker tests alias @wp-sqlite/d1-proxy-worker from it).
           sqlite-driver-src = pkgs.runCommandLocal "sqlite-driver-src" { } ''

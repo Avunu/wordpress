@@ -34,6 +34,8 @@
 # Rust nixpkgs for the native extensions; both default to null so importing the
 # file directly still works for mysql-only deployments.
 {
+  # The sqlite-database-integration source, shared by the d1 and turso backends.
+  driverSrc ? d1DriverSrc,
   d1DriverSrc ? null,
   rustNixpkgs ? null,
 }:
@@ -60,6 +62,13 @@ let
 
   managed = cfg.source.type == "managed";
   d1 = cfg.database.type == "d1";
+  turso = cfg.database.type == "turso";
+  # Both remote backends run the MySQL-on-SQLite driver rather than MySQL.
+  remoteSqlite = d1 || turso;
+
+  # The front end reads a published snapshot; without one every statement goes
+  # to the primary, which is what the control plane wants.
+  tursoSnapshot = turso && cfg.database.turso.snapshotPath != null;
 
   php = import ../lib/php.nix {
     inherit pkgs;
@@ -81,7 +90,7 @@ let
     if d1 then
       import ../lib/php-extensions.nix {
         inherit pkgs php;
-        src = d1DriverSrc;
+        src = driverSrc;
         rustPkgs =
           if rustNixpkgs != null then
             rustNixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}
@@ -99,22 +108,65 @@ let
 
   # The SQLite Database Integration plugin, dereferenced (its wp-includes/
   # database tree is symlinked in the repo).
-  d1Plugin =
-    if d1 then
+  sqlitePlugin =
+    if remoteSqlite then
       pkgs.runCommandLocal "sqlite-database-integration-plugin" { } ''
-        cp -rL ${d1DriverSrc}/packages/plugin-sqlite-database-integration $out
+        cp -rL ${driverSrc}/packages/plugin-sqlite-database-integration $out
       ''
     else
       null;
 
   # The db.php drop-in, pointed at the store copy of the plugin. Installed
   # into wp-content by wordpress-init (a drop-in, so gitium ignores it).
-  d1DropIn =
-    if d1 then
-      pkgs.runCommandLocal "wordpress-d1-db-drop-in" { } ''
-        substitute ${d1Plugin}/wp-includes/database/d1/db.copy $out \
-          --replace-fail '{SQLITE_IMPLEMENTATION_FOLDER_PATH}' '${d1Plugin}'
+  dbDropIn =
+    if remoteSqlite then
+      pkgs.runCommandLocal "wordpress-${cfg.database.type}-db-drop-in" { } ''
+        substitute ${sqlitePlugin}/wp-includes/database/${cfg.database.type}/db.copy $out \
+          --replace-fail '{SQLITE_IMPLEMENTATION_FOLDER_PATH}' '${sqlitePlugin}'
       ''
+    else
+      null;
+
+  # The publisher's launcher. The auth token is read from its file into the
+  # environment rather than passed as an argument, so it never appears in the
+  # process list; systemd's EnvironmentFile cannot be used because the secret is
+  # a bare token rather than KEY=value.
+  tursoPublisherScript =
+    if tursoSnapshot then
+      pkgs.writeShellScript "wordpress-turso-publish" ''
+        set -eu
+        ${optionalString (cfg.database.turso.tokenFile != null) ''
+          TURSO_AUTH_TOKEN="$(tr -d '\r\n' < ${lib.escapeShellArg cfg.database.turso.tokenFile})"
+          export TURSO_AUTH_TOKEN
+        ''}
+        exec ${getExe tursoPublisher} \
+          --replica ${
+            lib.escapeShellArg (
+              if cfg.database.turso.replicaPath != null then
+                cfg.database.turso.replicaPath
+              else
+                "${cfg.stateDir}/turso/replica.db"
+            )
+          } \
+          --published ${lib.escapeShellArg cfg.database.turso.snapshotPath} \
+          --url ${lib.escapeShellArg cfg.database.turso.url} \
+          "$@"
+      ''
+    else
+      null;
+
+  # The snapshot publisher, for the front end's read path.
+  tursoPublisher =
+    if tursoSnapshot then
+      import ../lib/turso-publisher.nix {
+        inherit pkgs;
+        src = driverSrc;
+        rustPkgs =
+          if rustNixpkgs != null then
+            rustNixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}
+          else
+            pkgs;
+      }
     else
       null;
 
@@ -228,8 +280,31 @@ let
       define('WP_D1_PROXY_TOKEN', trim((string) @file_get_contents('${cfg.database.d1.tokenFile}')));
       define('WP_D1_HTTP_TIMEOUT_MS', ${toString cfg.database.d1.requestTimeoutMs});
     ''}
-    // Database settings${optionalString d1 " (placeholders — the D1 drop-in owns the connection)"}
-    define('DB_HOST', '${if d1 then "localhost" else dbHost}');
+    ${optionalString turso ''
+      // Turso through the MySQL-on-SQLite driver (db.php drop-in).
+      define('WP_TURSO_URL', '${cfg.database.turso.url}');
+      ${optionalString (cfg.database.turso.tokenFile != null) ''
+        define('WP_TURSO_TOKEN', trim((string) @file_get_contents('${cfg.database.turso.tokenFile}')));
+      ''}
+      define('WP_TURSO_HTTP_TIMEOUT_MS', ${toString cfg.database.turso.requestTimeoutMs});
+      ${
+        if tursoSnapshot then
+          ''
+            // Reads come from the snapshot the publisher maintains; the first write
+            // latches the rest of the request to the primary, so it reads its own
+            // writes. The snapshot is therefore behind the primary by at most one
+            // publish interval.
+            define('WP_TURSO_SNAPSHOT', '${cfg.database.turso.snapshotPath}');
+          ''
+        else
+          ''
+            // No snapshot: every statement goes to the primary. Co-locate it --
+            // per-statement latency is what an admin page multiplies.
+          ''
+      }
+    ''}
+    // Database settings${optionalString remoteSqlite " (placeholders — the ${cfg.database.type} drop-in owns the connection)"}
+    define('DB_HOST', '${if remoteSqlite then "localhost" else dbHost}');
     define('DB_USER', '${cfg.database.user}');
     define('DB_NAME', '${cfg.database.name}');
     define('DB_CHARSET', 'utf8');
@@ -376,10 +451,17 @@ let
       '') cfg.muPlugins
     )}
 
-    ${optionalString d1 ''
-      # The D1 database drop-in (regenerated each boot; a drop-in, so gitium
-      # ignores it and WordPress loads it in place of MySQL).
-      install -m 0644 ${d1DropIn} "$DOCROOT/wp-content/db.php"
+    ${optionalString remoteSqlite ''
+      # The database drop-in (regenerated each boot; a drop-in, so gitium ignores
+      # it and WordPress loads it in place of MySQL).
+      install -m 0644 ${dbDropIn} "$DOCROOT/wp-content/db.php"
+    ''}
+    ${optionalString tursoSnapshot ''
+      # The snapshot the publisher writes lives beside the database directory the
+      # plugin wants writable (it drops an index.php and .htaccess there).
+      install -d -m 0755 -o ${cfg.user} -g ${cfg.group} ${
+        lib.escapeShellArg (builtins.dirOf cfg.database.turso.snapshotPath)
+      }
     ''}
 
     # --- secrets: salts (provided or generated once), DB password every run ---
@@ -612,12 +694,15 @@ in
         type = types.enum [
           "mysql"
           "d1"
+          "turso"
         ];
         default = "mysql";
         description = ''
           `mysql` = MariaDB/MySQL (local or external); `d1` = the shared
           Cloudflare D1 database through the site Worker's authenticated
-          /__d1 proxy (no local database at all).
+          /__d1 proxy (no local database at all); `turso` = a Turso database
+          over SQL-over-HTTP, optionally reading from a locally published
+          snapshot (see `database.turso.snapshotPath`).
         '';
       };
       d1 = {
@@ -637,6 +722,74 @@ in
           type = types.int;
           default = 20000;
           description = "HTTP request timeout for D1 proxy calls.";
+        };
+      };
+      turso = {
+        url = mkOption {
+          type = types.str;
+          default = "";
+          example = "libsql://site-org.turso.io";
+          description = ''
+            The Turso database URL. `libsql://` and `turso://` are accepted and
+            mean HTTPS.
+
+            Per-statement latency is what a query-heavy admin page multiplies, so
+            co-locate the primary: a local `tursodb --sync-server` answers in
+            ~156 µs where a WAN round trip would not.
+          '';
+        };
+        tokenFile = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          example = "/run/agenix/site-turso-token";
+          description = "Runtime path to the Turso auth token. Unset for a server that needs none.";
+        };
+        snapshotPath = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          example = "/var/lib/wordpress/database/snapshot.db";
+          description = ''
+            Read from a locally published SQLite snapshot instead of the primary,
+            with writes still going to the primary. This is the front end's mode:
+            rendering a page never touches the network.
+
+            Setting this starts `wordpress-turso-publisher`, which keeps the
+            snapshot current. Reads are then behind the primary by at most
+            `publishIntervalSeconds` — a real semantic change, and one to document
+            per site. It composes with page caching, which already means the public
+            site lags the database by a bounded amount.
+
+            Leave null on the control plane, where wp-admin must read its own
+            writes immediately.
+          '';
+        };
+        replicaPath = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          example = "/var/lib/wordpress/turso/replica.db";
+          description = ''
+            Where the publisher keeps its private embedded replica. Defaults to
+            `turso/replica.db` under the state directory.
+
+            Only the publisher may touch it: Turso holds an exclusive lock on a
+            live replica and coordinates its WAL through a file SQLite does not
+            understand, so nothing else can read it. Keeping it across restarts is
+            what keeps each pull incremental.
+          '';
+        };
+        publishIntervalSeconds = mkOption {
+          type = types.int;
+          default = 10;
+          description = ''
+            Seconds between snapshot publishes. This sets both the staleness
+            window and the steady-state cost: each cycle rewrites the whole
+            snapshot, which took 10–15 ms for a 467 KB database.
+          '';
+        };
+        requestTimeoutMs = mkOption {
+          type = types.int;
+          default = 20000;
+          description = "HTTP request timeout for Turso calls.";
         };
       };
       createLocally = mkEnableOption "a local MariaDB (passwordless unix_socket auth)";
@@ -739,8 +892,20 @@ in
         message = "services.wordpress-nix: local DB uses unix_socket auth, so database.user must equal user.";
       }
       {
-        assertion = !d1 || d1DriverSrc != null;
-        message = "services.wordpress-nix: database.type = \"d1\" requires consuming the module via the flake's nixosModules (it injects the driver source).";
+        assertion = !remoteSqlite || driverSrc != null;
+        message = "services.wordpress-nix: database.type = \"${cfg.database.type}\" requires consuming the module via the flake's nixosModules (it injects the driver source).";
+      }
+      {
+        assertion = !turso || cfg.database.turso.url != "";
+        message = "services.wordpress-nix: database.type = \"turso\" requires database.turso.url.";
+      }
+      {
+        assertion = !turso || !cfg.database.createLocally;
+        message = "services.wordpress-nix: database.type = \"turso\" is remote-only; disable database.createLocally.";
+      }
+      {
+        assertion = !tursoSnapshot || cfg.database.turso.publishIntervalSeconds > 0;
+        message = "services.wordpress-nix: database.turso.publishIntervalSeconds must be at least 1.";
       }
       {
         assertion = !d1 || (cfg.database.d1.proxyUrl != "" && cfg.database.d1.tokenFile != null);
@@ -821,7 +986,11 @@ in
       after = [
         "network-online.target"
         "wordpress-init.service"
-      ] ++ optional dbLocal "mysql.service";
+      ]
+      ++ optional dbLocal "mysql.service"
+      # The publisher writes its first snapshot in ExecStartPre, so ordering after
+      # it means WordPress never starts without one to read.
+      ++ optional tursoSnapshot "wordpress-turso-publisher.service";
       requires = [ "wordpress-init.service" ] ++ optional dbLocal "mysql.service";
       path = [
         wpCli
@@ -855,6 +1024,44 @@ in
         NoNewPrivileges = true;
         # NOTE: do NOT set MemoryDenyWriteExecute — opcache JIT needs W^X toggling
         # and would crash FrankenPHP at startup.
+      };
+    };
+
+    # The front end's read path. Turso holds an exclusive lock on a live replica
+    # and coordinates its WAL through a file SQLite cannot read, so PHP is handed
+    # a published snapshot instead: pull, VACUUM INTO, rename.
+    systemd.services.wordpress-turso-publisher = mkIf tursoSnapshot {
+      description = "Publish a readable SQLite snapshot of the Turso database";
+      # WordPress must not start before a snapshot exists: without one the drop-in
+      # falls back to serving every read from the primary, which works but is slow.
+      before = [ "wordpress.service" ];
+      wantedBy = [ "wordpress.service" ];
+      wants = [ "network-online.target" ];
+      after = [
+        "network-online.target"
+        "wordpress-init.service"
+      ];
+      requires = [ "wordpress-init.service" ];
+      serviceConfig = {
+        User = cfg.user;
+        Group = cfg.group;
+        # Publish once before the unit counts as started, so wordpress.service --
+        # ordered after this one -- never comes up without a snapshot to read.
+        ExecStartPre = "${tursoPublisherScript} --once";
+        ExecStart = "${tursoPublisherScript} --interval ${toString cfg.database.turso.publishIntervalSeconds}";
+        Restart = "always";
+        RestartSec = "5";
+        # Publish into the state directory and nowhere else.
+        ReadWritePaths = [
+          cfg.stateDir
+        ]
+        ++ lib.optional (
+          !lib.hasPrefix cfg.stateDir cfg.database.turso.snapshotPath
+        ) (builtins.dirOf cfg.database.turso.snapshotPath);
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        NoNewPrivileges = true;
       };
     };
 

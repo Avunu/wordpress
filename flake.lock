@@ -44,16 +44,16 @@
     "sqlite-database-integration": {
       "flake": false,
       "locked": {
-        "lastModified": 1787661671,
-        "narHash": "sha256-2ZNFrw3iSs3bqwO7le4bZfUWna7zdbCZjHlH29tDjSA=",
-        "ref": "d1-support",
-        "rev": "b34b2481e27a7e8c00b6db888b92abb469c49665",
-        "revCount": 951,
+        "lastModified": 1789088949,
+        "narHash": "sha256-ZVpTephvmW8r6bFLPWdfa2LvbgEYSlIWg3PscILCh9I=",
+        "ref": "turso-support",
+        "rev": "7d5d057a006e234ea6ff3c6c9d93c58525cf42f1",
+        "revCount": 959,
         "type": "git",
         "url": "https://github.com/Avunu/sqlite-database-integration"
       },
       "original": {
-        "ref": "d1-support",
+        "ref": "turso-support",
         "type": "git",
         "url": "https://github.com/Avunu/sqlite-database-integration"
       }
