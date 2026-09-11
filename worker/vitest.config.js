@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
 import { defineConfig } from 'vitest/config';
 
-// The D1 proxy handler comes from the sqlite-database-integration project.
+// The D1 proxy handler comes from the wordpress-sqlite-anywhere project.
 // Locally a sibling checkout is used; CI materializes the flake input
 // (nix build .#sqlite-driver-src) and points this env var at it, so tests
 // run against the exact pinned revision.
@@ -10,7 +10,7 @@ const d1ProxySrc =
 	process.env.WP_SQLITE_D1_PROXY_SRC ??
 	fileURLToPath(
 		new URL(
-			'../../sqlite-database-integration/packages/d1-proxy-worker/src/handler.js',
+			'../../wordpress-sqlite-anywhere/packages/d1-proxy-worker/src/handler.js',
 			import.meta.url
 		)
 	);

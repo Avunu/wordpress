@@ -32,7 +32,7 @@ jobs:
         with:
           use-flakehub: false
 
-      - name: Materialize the pinned sqlite-database-integration source
+      - name: Materialize the pinned wordpress-sqlite-anywhere source
         run: nix build .#sqlite-driver-src -o .sqlite-src
 
       - uses: actions/setup-node@v7

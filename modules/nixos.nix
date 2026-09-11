@@ -30,13 +30,13 @@
 # optimized ZTS build (lib/php.nix) + FrankenPHP (lib/frankenphp.nix) used by the
 # OCI images.
 #
-# Outer layer: the flake injects the sqlite-database-integration source and the
+# Outer layer: the flake injects the wordpress-sqlite-anywhere flake and the
 # Rust nixpkgs for the native extensions; both default to null so importing the
 # file directly still works for mysql-only deployments.
 {
-  # The sqlite-database-integration source, shared by the d1 and turso backends.
-  driverSrc ? d1DriverSrc,
-  d1DriverSrc ? null,
+  # The wordpress-sqlite-anywhere flake, shared by the d1 and turso backends:
+  # its packages.default is the plugin, its lib builds the native pieces.
+  sqliteAnywhere ? null,
   rustNixpkgs ? null,
 }:
 {
@@ -84,18 +84,20 @@ let
   secretsFile = "${cfg.stateDir}/wp-secrets.php";
   runtimeSaltsFile = "/run/wordpress/wp-salts.php";
 
+  rustPkgs =
+    if rustNixpkgs != null then rustNixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system} else pkgs;
+
   # --- D1 database mode plumbing ---
   # Native wp_mysql_parser + wp_d1_client extensions, mirroring the OCI image.
   phpExtensions =
     if d1 then
       import ../lib/php-extensions.nix {
-        inherit pkgs php;
-        src = driverSrc;
-        rustPkgs =
-          if rustNixpkgs != null then
-            rustNixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}
-          else
-            pkgs;
+        inherit
+          pkgs
+          php
+          sqliteAnywhere
+          rustPkgs
+          ;
       }
     else
       null;
@@ -106,23 +108,25 @@ let
     [ "${php}/lib" ] ++ optional (phpExtensions != null) "${phpExtensions.iniDir}"
   );
 
-  # The SQLite Database Integration plugin, dereferenced (its wp-includes/
-  # database tree is symlinked in the repo).
+  # The WordPress SQLite Anywhere plugin, built by its own flake (the assembled
+  # driver, the patch series applied, vendor/ bundled).
   sqlitePlugin =
     if remoteSqlite then
-      pkgs.runCommandLocal "sqlite-database-integration-plugin" { } ''
-        cp -rL ${driverSrc}/packages/plugin-sqlite-database-integration $out
-      ''
+      "${
+        sqliteAnywhere.packages.${pkgs.stdenv.hostPlatform.system}.default
+      }/share/wordpress/plugins/wordpress-sqlite-anywhere"
     else
       null;
 
-  # The db.php drop-in, pointed at the store copy of the plugin. Installed
+  # The db.php drop-in, pointed at the store copy of the plugin. One drop-in
+  # for every engine; wp-config.php's DB_ENGINE picks the backend. Installed
   # into wp-content by wordpress-init (a drop-in, so gitium ignores it).
   dbDropIn =
     if remoteSqlite then
       pkgs.runCommandLocal "wordpress-${cfg.database.type}-db-drop-in" { } ''
-        substitute ${sqlitePlugin}/wp-includes/database/${cfg.database.type}/db.copy $out \
-          --replace-fail '{SQLITE_IMPLEMENTATION_FOLDER_PATH}' '${sqlitePlugin}'
+        substitute ${sqlitePlugin}/db.copy $out \
+          --replace-fail '{SQLITE_IMPLEMENTATION_FOLDER_PATH}' '${sqlitePlugin}' \
+          --replace-fail '{SQLITE_PLUGIN}' 'wordpress-sqlite-anywhere/wordpress-sqlite-anywhere.php'
       ''
     else
       null;
@@ -157,18 +161,7 @@ let
 
   # The snapshot publisher, for the front end's read path.
   tursoPublisher =
-    if tursoSnapshot then
-      import ../lib/turso-publisher.nix {
-        inherit pkgs;
-        src = driverSrc;
-        rustPkgs =
-          if rustNixpkgs != null then
-            rustNixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}
-          else
-            pkgs;
-      }
-    else
-      null;
+    if tursoSnapshot then sqliteAnywhere.lib.mkTursoPublisher { inherit pkgs rustPkgs; } else null;
 
   # --- managed source mode plumbing ---
   # The pinned core with the generated wp-config.php at its root. Core entries
@@ -273,6 +266,10 @@ let
     ${optionalString managed ''
       // Managed mode: core lives in the (read-only) store; content is mutable.
       define('WP_CONTENT_DIR', '${docroot}/wp-content');
+    ''}
+    ${optionalString remoteSqlite ''
+      // The engine the WordPress SQLite Anywhere drop-in boots.
+      define('DB_ENGINE', '${cfg.database.type}');
     ''}
     ${optionalString d1 ''
       // Cloudflare D1 via the site Worker's authenticated proxy (db.php drop-in).
@@ -892,8 +889,12 @@ in
         message = "services.wordpress-nix: local DB uses unix_socket auth, so database.user must equal user.";
       }
       {
-        assertion = !remoteSqlite || driverSrc != null;
-        message = "services.wordpress-nix: database.type = \"${cfg.database.type}\" requires consuming the module via the flake's nixosModules (it injects the driver source).";
+        assertion = !remoteSqlite || sqliteAnywhere != null;
+        message = "services.wordpress-nix: database.type = \"${cfg.database.type}\" requires consuming the module via the flake's nixosModules (it injects the wordpress-sqlite-anywhere flake).";
+      }
+      {
+        assertion = !remoteSqlite || lib.versionAtLeast cfg.php.version "8.5";
+        message = "services.wordpress-nix: database.type = \"${cfg.database.type}\" needs php = pkgs.php85 or newer; the WordPress SQLite Anywhere plugin requires PHP 8.5.";
       }
       {
         assertion = !turso || cfg.database.turso.url != "";

@@ -42,7 +42,7 @@ export class WordPressContainer extends Container {
 		super( ctx, env );
 
 		this.envVars = {
-			// The D1 database drop-in. See the sqlite-database-integration
+			// The D1 database drop-in. See the wordpress-sqlite-anywhere
 			// project's D1 backend documentation.
 			WP_D1_PROXY_URL: 'http://d1.internal',
 			WORDPRESS_DB_NAME: env.WORDPRESS_DB_NAME ?? 'wordpress',

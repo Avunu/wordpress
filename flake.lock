@@ -1,5 +1,36 @@
 {
   "nodes": {
+    "composition-c4": {
+      "locked": {
+        "lastModified": 1684533115,
+        "narHash": "sha256-a+qumQAxgUkeH5U/9b9X7JGeYn+61nV0Y/bCGU1FO/M=",
+        "owner": "fossar",
+        "repo": "composition-c4",
+        "rev": "0d3f787d71ab954235491352887b69bf52c5e865",
+        "type": "github"
+      },
+      "original": {
+        "owner": "fossar",
+        "repo": "composition-c4",
+        "type": "github"
+      }
+    },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767039857,
+        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
+        "owner": "NixOS",
+        "repo": "flake-compat",
+        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -15,6 +46,46 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "flake-utils_2": {
+      "inputs": {
+        "systems": "systems_2"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "git-hooks": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "nixpkgs": [
+          "wordpress-sqlite-anywhere",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1788267358,
+        "narHash": "sha256-nt+lUqYVpc9Y6JeMd2WmXzCDojasdadKo0mWcluvY2Y=",
+        "owner": "cachix",
+        "repo": "git-hooks.nix",
+        "rev": "27555e2624241fb116b49095df4caaee85a25691",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cachix",
+        "repo": "git-hooks.nix",
         "type": "github"
       }
     },
@@ -38,24 +109,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "sqlite-database-integration": "sqlite-database-integration"
-      }
-    },
-    "sqlite-database-integration": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1789088949,
-        "narHash": "sha256-ZVpTephvmW8r6bFLPWdfa2LvbgEYSlIWg3PscILCh9I=",
-        "ref": "turso-support",
-        "rev": "7d5d057a006e234ea6ff3c6c9d93c58525cf42f1",
-        "revCount": 959,
-        "type": "git",
-        "url": "https://github.com/Avunu/sqlite-database-integration"
-      },
-      "original": {
-        "ref": "turso-support",
-        "type": "git",
-        "url": "https://github.com/Avunu/sqlite-database-integration"
+        "wordpress-sqlite-anywhere": "wordpress-sqlite-anywhere"
       }
     },
     "systems": {
@@ -71,6 +125,47 @@
         "owner": "nix-systems",
         "repo": "default",
         "type": "github"
+      }
+    },
+    "systems_2": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "wordpress-sqlite-anywhere": {
+      "inputs": {
+        "composition-c4": "composition-c4",
+        "flake-utils": "flake-utils_2",
+        "git-hooks": "git-hooks",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789166517,
+        "narHash": "sha256-+es5evYSQ9fGG/kogkxC8UbcZMs5NKELYN4A7NtFHV0=",
+        "ref": "main",
+        "rev": "f7bddf0316fabd8c85f30d2f7a591e488e7c8b1d",
+        "revCount": 35,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/Avunu/wordpress-sqlite-anywhere"
+      },
+      "original": {
+        "ref": "main",
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/Avunu/wordpress-sqlite-anywhere"
       }
     }
   },

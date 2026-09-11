@@ -10,10 +10,10 @@
   php,
   imageName,
   tag ? "latest",
-  # Source of the SQLite Database Integration project (with the D1 backend).
-  # When set, the image bundles the plugin, the D1 db.php drop-in, and the
-  # native wp_mysql_parser + wp_d1_client extensions.
-  d1DriverSrc ? null,
+  # The wordpress-sqlite-anywhere flake. When set, the image bundles the
+  # plugin (with its db.php drop-in) and the native wp_mysql_parser +
+  # wp_d1_client extensions; the entrypoint installs both for D1 sites.
+  sqliteAnywhere ? null,
   # Package set providing the Rust toolchain for the native extensions.
   rustPkgs ? pkgs,
   # WordPress core is baked into the image (at /usr/src/wordpress) so the
@@ -51,14 +51,21 @@ let
     );
 
   phpExtensions =
-    if d1DriverSrc == null then
+    if sqliteAnywhere == null then
       null
     else
       import ../lib/php-extensions.nix {
-        inherit pkgs rustPkgs;
+        inherit pkgs rustPkgs sqliteAnywhere;
         php = phpBuild;
-        src = d1DriverSrc;
       };
+
+  sqlitePlugin =
+    if sqliteAnywhere == null then
+      null
+    else
+      "${
+        sqliteAnywhere.packages.${pkgs.stdenv.hostPlatform.system}.default
+      }/share/wordpress/plugins/wordpress-sqlite-anywhere";
 
   # The PHP ini scan path: the buildEnv's own configuration, plus the native
   # extensions when enabled. FrankenPHP's embedded PHP does not inherit the
@@ -148,12 +155,12 @@ ${graftInto "themes" themes}
     mkdir mu-plugins
     cp -r ${../mu-plugins}/. mu-plugins/
 ${
-  pkgs.lib.optionalString (d1DriverSrc != null) ''
-    # Bundle the SQLite Database Integration plugin with the D1 backend.
-    # The entrypoint installs it into the docroot when WP_D1_PROXY_URL is set.
-    # -L dereferences the plugin's wp-includes/database symlink.
+  pkgs.lib.optionalString (sqlitePlugin != null) ''
+    # Bundle the WordPress SQLite Anywhere plugin (driver + D1 and Turso
+    # backends + db.php drop-in). The entrypoint installs it into the docroot
+    # when WP_D1_PROXY_URL is set.
     mkdir -p wordpress-plugins
-    cp -rL ${d1DriverSrc}/packages/plugin-sqlite-database-integration wordpress-plugins/sqlite-database-integration
+    cp -r ${sqlitePlugin} wordpress-plugins/wordpress-sqlite-anywhere
     chmod -R u+w wordpress-plugins
 ''
 }

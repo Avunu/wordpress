@@ -29,7 +29,7 @@ declare( strict_types = 1 );
 // checkout so the script is runnable from a dev tree.
 $driver_root = getenv( 'WP_MYSQL_ON_SQLITE_SRC' );
 if ( false === $driver_root || '' === $driver_root ) {
-	$driver_root = __DIR__ . '/../../sqlite-database-integration/packages/mysql-on-sqlite/src';
+	$driver_root = __DIR__ . '/../../wordpress-sqlite-anywhere/build/packages/mysql-on-sqlite/src';
 }
 if ( ! file_exists( $driver_root . '/load.php' ) ) {
 	fwrite( STDERR, "error: MySQL-on-SQLite driver not found at {$driver_root}\n" );

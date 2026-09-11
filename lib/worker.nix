@@ -8,7 +8,7 @@
 #   - @cloudflare/containers: zero-runtime-dependency npm package, vendored
 #     by fetching its tarball (no lockfile machinery needed).
 #   - @wp-sqlite/d1-proxy-worker: resolved by esbuild alias directly from
-#     the sqlite-database-integration flake input — publishing it to npm is
+#     the wordpress-sqlite-anywhere flake input — publishing it to npm is
 #     unnecessary.
 #   - cloudflare:* runtime modules stay external.
 #
@@ -17,8 +17,9 @@
 #     a custom entry module importing the platform modules for extra routes.
 {
   pkgs,
-  # The sqlite-database-integration source (the flake passes its input).
-  sqliteDriverSrc,
+  # The d1-proxy-worker package source (wordpress-sqlite-anywhere's
+  # lib.srcs.d1ProxyWorker; the flake passes it).
+  d1ProxyWorkerSrc,
   # Optional custom entry module (a path). Defaults to the platform worker.
   entry ? null,
 }:
@@ -47,7 +48,7 @@ pkgs.runCommandLocal "wordpress-edge-worker"
       --bundle \
       --format=esm \
       --platform=browser \
-      --alias:@wp-sqlite/d1-proxy-worker=${sqliteDriverSrc}/packages/d1-proxy-worker/src/handler.js \
+      --alias:@wp-sqlite/d1-proxy-worker=${d1ProxyWorkerSrc}/src/handler.js \
       "--external:cloudflare:*" \
       --outfile=$out/index.js
   ''

@@ -17,8 +17,9 @@
   # Extra php.ini lines appended after conf/php.ini (later keys win).
   iniExtra ? "",
   # Build opcache with JIT support. nixpkgs disables it for every ZTS build
-  # (see jitPhp below), which silently makes conf/php.ini's `opcache.jit`
-  # directive inert -- and FrankenPHP requires ZTS, so that is every build here.
+  # before PHP 8.5 (see jitPhp below), which silently makes conf/php.ini's
+  # `opcache.jit` directive inert -- and FrankenPHP requires ZTS, so that is
+  # every build here.
   jit ? true,
 }:
 let
@@ -45,8 +46,12 @@ let
   # Dropping the flag is worth -21% TTFB and +21% requests per vCPU on a real
   # WordPress page, for ~0.16 s of cold start and ~20 MB of RSS.
   # Measured in wordpress-moonshot/BENCHMARK.md.
+  #
+  # On PHP 8.5 opcache is built into the interpreter: there is no opcache
+  # extension attribute to override (the override would throw) and no JIT
+  # gate to remove, so the interpreter is used as is.
   jitPhp =
-    if jit then
+    if jit && lib.versionOlder php.version "8.5" then
       php.override {
         packageOverrides = _final: prev: {
           extensions = prev.extensions // {
@@ -117,7 +122,6 @@ let
       exif
       fileinfo
       filter
-      igbinary
       # imagick
       intl
       mbstring
@@ -131,8 +135,8 @@ let
       zip
       zlib
 
-      # Recommended for caching
-      opcache
+      # Recommended for caching. opcache is an extension up to PHP 8.4 and part
+      # of the interpreter from 8.5, where `all` no longer has it.
       apcu
 
       # Optional extensions for improved functionality
@@ -143,6 +147,12 @@ let
       # Development extensions (uncomment if needed in production)
       # xdebug
     ])
+    ++ lib.optionals (lib.versionOlder php.version "8.5") [
+      all.opcache
+      # igbinary has no PHP 8.5 release yet (nixpkgs marks it broken there);
+      # APCu falls back to PHP's own serializer.
+      all.igbinary
+    ]
     ++ extraExtensions all
   );
 in

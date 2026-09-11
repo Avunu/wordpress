@@ -25,7 +25,7 @@ Both paths share the same optimized ZTS PHP build (`lib/php.nix`) and FrankenPHP
 ```
 flake.nix                 # outputs: nixosModules.default, lib, packages, checks
 lib/{php,frankenphp,wordpress}.nix   # shared builders
-lib/turso-publisher.nix   # the Turso snapshot publisher (database.type = "turso")
+lib/php-extensions.nix    # the native wp_mysql_parser + wp_d1_client extensions (from the plugin flake)
 modules/nixos.nix         # services.wordpress-nix
 modules/containers.nix    # OCI image build (reuses lib/)
 conf/{php.ini,Caddyfile,wp-config.php}
@@ -104,8 +104,11 @@ Notes:
 | `d1` | Cloudflare D1 through the site Worker's authenticated `/__d1` proxy. |
 | `turso` | A Turso database over SQL-over-HTTP, optionally reading from a locally published snapshot. |
 
-Both remote backends run the MySQL-on-SQLite driver in place of MySQL, and the
-module installs the matching `wp-content/db.php` drop-in for you.
+Both remote backends run the MySQL-on-SQLite driver in place of MySQL, through
+the [WordPress SQLite Anywhere](https://github.com/Avunu/wordpress-sqlite-anywhere)
+plugin (a flake input); the module installs its `wp-content/db.php` drop-in and
+sets `DB_ENGINE` for you. The plugin requires PHP 8.5, so these modes need
+`php = pkgs.php85` (an assertion says so).
 
 #### Turso
 
@@ -120,6 +123,7 @@ round trip would not.
 ```nix
 services.wordpress-nix = {
   enable = true;
+  php = pkgs.php85;
   database.type = "turso";
   database.turso.url = "http://127.0.0.1:8080";
 };
@@ -134,6 +138,7 @@ vCPU, indistinguishable from reading the database file directly.
 ```nix
 services.wordpress-nix = {
   enable = true;
+  php = pkgs.php85;
   database.type = "turso";
   database.turso = {
     url = "libsql://site-org.turso.io";

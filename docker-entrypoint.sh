@@ -122,18 +122,23 @@ if [ -f /object-cache.php ] && [ "${WORDPRESS_OBJECT_CACHE:-apcu}" != "none" ]; 
     chmod 644 /var/www/html/wp-content/object-cache.php
 fi
 
-# Install the SQLite Database Integration plugin and the Cloudflare D1
-# database drop-in when the image bundles them and a proxy is configured.
-if [ -d /wordpress-plugins/sqlite-database-integration ]; then
-    echo "Installing the SQLite Database Integration plugin"
-    rm -rf /var/www/html/wp-content/plugins/sqlite-database-integration
+# Install the WordPress SQLite Anywhere plugin and its database drop-in when
+# the image bundles them and a D1 proxy is configured. The drop-in picks the
+# engine from DB_ENGINE (an environment variable will do); a configured
+# WP_D1_PROXY_URL would select D1 on its own, but say so explicitly.
+if [ -d /wordpress-plugins/wordpress-sqlite-anywhere ]; then
+    echo "Installing the WordPress SQLite Anywhere plugin"
+    rm -rf /var/www/html/wp-content/plugins/wordpress-sqlite-anywhere /var/www/html/wp-content/plugins/sqlite-database-integration
     mkdir -p /var/www/html/wp-content/plugins
-    cp -a /wordpress-plugins/sqlite-database-integration /var/www/html/wp-content/plugins/
+    cp -a /wordpress-plugins/wordpress-sqlite-anywhere /var/www/html/wp-content/plugins/
 
     if [ -n "${WP_D1_PROXY_URL:-}" ]; then
-        echo "Installing the Cloudflare D1 database drop-in (wp-content/db.php)"
-        cp /var/www/html/wp-content/plugins/sqlite-database-integration/wp-includes/database/d1/db.copy \
-            /var/www/html/wp-content/db.php
+        echo "Installing the database drop-in (wp-content/db.php) for Cloudflare D1"
+        export DB_ENGINE="${DB_ENGINE:-d1}"
+        sed -e "s|{SQLITE_IMPLEMENTATION_FOLDER_PATH}|/var/www/html/wp-content/plugins/wordpress-sqlite-anywhere|" \
+            -e "s|{SQLITE_PLUGIN}|wordpress-sqlite-anywhere/wordpress-sqlite-anywhere.php|" \
+            /var/www/html/wp-content/plugins/wordpress-sqlite-anywhere/db.copy \
+            > /var/www/html/wp-content/db.php
         chmod 644 /var/www/html/wp-content/db.php
     fi
 fi

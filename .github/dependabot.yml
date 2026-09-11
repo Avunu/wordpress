@@ -32,8 +32,8 @@ updates:
         patterns: ["*"]
 
   # Nix flake inputs — nixpkgs, flake-utils, and the pinned
-  # sqlite-database-integration D1 driver. Dependabot reads flake.lock directly
-  # (schema v7) and covers the `git+https` driver input as well as the `github:` ones.
+  # wordpress-sqlite-anywhere plugin. Dependabot reads flake.lock directly
+  # (schema v7) and covers the `git+https` plugin input as well as the `github:` ones.
   #
   # A lock bump touches flake.lock, which is in the `worker` workflow's path filter, so
   # these PRs run the worker suite as well as the image build.
